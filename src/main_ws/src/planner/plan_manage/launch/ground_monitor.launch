@@ -1,0 +1,57 @@
+<launch>
+
+    <node pkg="swarm_bridge" name="ground_bridge_node" type="bridge_node_udp" output="screen">
+        <!-- 没有真实里程计随便给个不存在的话题-->
+        <remap from="~my_odom" to="/dummy_odom"/>
+        <remap from="~my_map_cloud" to="/dummy_map"/>
+        <remap from="/goal_brig2plner" to="/goal_with_id"/>
+        <remap from="/broadcast_traj_to_planner"   to="/broadcast_traj_to_planner"/>
+        <remap from="/broadcast_traj_from_planner" to="/broadcast_traj_from_planner"/>
+
+        <param name="broadcast_ip" value="192.168.50.255" />
+        <param name="drone_id" value="99"/>
+        <param name="odom_max_freq" value="70"/>
+        <param name="map_max_freq"  value="1.0"/>
+    </node>
+
+    <node pkg="swarm_bridge" name="ground_traj2odom" type="traj2odom_node" output="screen">
+        <param name="odom_hz" value="30"/>
+        <remap from="/broadcast_traj_to_planner" to="/broadcast_traj_to_planner"/>
+    </node>
+
+    <!-- <node pkg ="assign_goals" name ="assign_goals_node" type ="assign_goals_node" output = "screen"/> -->
+
+    <!-- <node pkg="global_map_assembler" type="global_map_assembler_node" name="global_map_assembler" output="screen"> -->
+      <!-- 场地参数 -->
+        <!-- <param name="resolution" value="0.3"/> -->
+        <!-- <param name="width"      value="400"/> -->
+        <!-- <param name="height"     value="400"/> -->
+        <!-- <param name="origin_x"   value="-10.0"/> -->
+        <!-- <param name="origin_y"   value="-10.0"/> -->
+        <!-- <param name="z_min"      value="-1.0"/> -->
+        <!-- <param name="z_max"      value="10.0"/> -->
+        <!-- <param name="frame_id"   value="world"/> -->
+    <!-- </node> -->
+
+    <node pkg="assign_goals" type="assign_goals_node" name="assign_goals_drone_0" output="screen">
+        <param name="drone_id" value="0"/>
+        <param name="goal_repeat_num" value="10"/>
+        <param name="goal_repeat_dt"  value="0.01"/>
+        <remap from="~goal_from_rviz" to="/drone_0/goal_from_rviz"/>
+    </node>
+
+    <node pkg="assign_goals" type="assign_goals_node" name="assign_goals_drone_1" output="screen">
+        <param name="drone_id" value="1"/>
+        <param name="goal_repeat_num" value="10"/>
+        <param name="goal_repeat_dt"  value="0.01"/>
+        <remap from="~goal_from_rviz" to="/drone_1/goal_from_rviz"/>
+    </node>
+
+    <node pkg="assign_goals" type="assign_goals_node" name="assign_goals_drone_2" output="screen">
+        <param name="drone_id" value="2"/>
+        <param name="goal_repeat_num" value="10"/>
+        <param name="goal_repeat_dt"  value="0.01"/>
+        <remap from="~goal_from_rviz" to="/drone_2/goal_from_rviz"/>
+    </node>
+
+</launch>
