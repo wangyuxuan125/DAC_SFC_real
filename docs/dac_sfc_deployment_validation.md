@@ -36,13 +36,17 @@ catkin_make -DCMAKE_BUILD_TYPE=Release
 source devel/setup.bash
 ```
 
-Start the existing simulator and planner scripts:
+After sourcing the PX4 Gazebo environment and adding PX4_Firmware to
+`ROS_PACKAGE_PATH`, start the complete single-vehicle simulation stack:
 
 ```bash
-roslaunch px4 single_vehicle.launch
-source devel/setup.bash
-sh script/ego_gazebo.sh
+roslaunch ego_planner dac_sfc_single_sim.launch
 ```
+
+This entry point launches Gazebo, PX4 SITL, the vehicle model, MAVROS,
+`px4ctrl`, the planner, trajectory server and RViz. It intentionally does not
+use the external `px4/single_vehicle.launch`, because that file is not part of
+this repository and may be generated or locally modified.
 
 During a run, check:
 
