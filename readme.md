@@ -29,3 +29,7 @@ rosrun tf2_ros static_transform_publisher 0 0 0 0 0 0 world drone_0_map
 rosbag
 
 rosbag record -O multi_drone.bag /iris_0/drone_0_ego_planner_node/optimal_list /iris_0/drone_0_ego_planner_node/init_list /iris_0/drone_0_odom_visualization/path /iris_0/drone_0_ego_planner_node/grid_map/occupancy_inflate /iris_0/drone_0_odom_visualization/robot /camera/color/image_raw
+
+DAC-SFC 部署验证（默认 shadow 模式，不接管控制）见：
+
+`docs/dac_sfc_deployment_validation.md`

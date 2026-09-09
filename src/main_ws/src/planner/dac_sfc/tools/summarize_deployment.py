@@ -1,0 +1,91 @@
+#!/usr/bin/env python3
+"""Summarize DAC-SFC deployment CSV logs without third-party dependencies."""
+
+import argparse
+import csv
+import math
+import statistics
+from collections import Counter
+from pathlib import Path
+
+
+NUMERIC_FIELDS = (
+    "astar_ms",
+    "shortcut_ms",
+    "obstacle_extract_ms",
+    "guide_ms",
+    "csgn_ms",
+    "corridor_ms",
+    "optimizer_setup_ms",
+    "optimizer_ms",
+    "total_ms",
+    "corridor_count",
+    "total_faces",
+    "geometry_evaluations_per_call",
+    "trajectory_duration_s",
+    "max_velocity_mps",
+    "max_acceleration_mps2",
+)
+
+
+def percentile(values, probability):
+    ordered = sorted(values)
+    if not ordered:
+        return math.nan
+    position = (len(ordered) - 1) * probability
+    lower = int(math.floor(position))
+    upper = int(math.ceil(position))
+    if lower == upper:
+        return ordered[lower]
+    fraction = position - lower
+    return ordered[lower] * (1.0 - fraction) + ordered[upper] * fraction
+
+
+def truthy(value):
+    return value.strip().lower() in {"1", "true", "yes"}
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("csv_files", nargs="+", type=Path)
+    args = parser.parse_args()
+
+    rows = []
+    for path in args.csv_files:
+        with path.open(newline="", encoding="utf-8") as handle:
+            rows.extend(csv.DictReader(handle))
+
+    successful = [row for row in rows if truthy(row["pipeline_success"])]
+    activated = sum(truthy(row["trajectory_activated"]) for row in rows)
+    fallbacks = sum(truthy(row["ego_fallback_used"]) for row in rows)
+    failures = Counter(row["failure_stage"] or "unspecified" for row in rows
+                       if not truthy(row["pipeline_success"]))
+
+    print(f"runs: {len(rows)}")
+    print(f"successful: {len(successful)}")
+    success_rate = 100.0 * len(successful) / len(rows) if rows else math.nan
+    print(f"success_rate_percent: {success_rate:.3f}")
+    print(f"activated: {activated}")
+    print(f"ego_fallbacks: {fallbacks}")
+    if failures:
+        print("failure_stages:")
+        for stage, count in failures.most_common():
+            print(f"  {stage}: {count}")
+
+    print("successful_run_metrics:")
+    for field in NUMERIC_FIELDS:
+        values = []
+        for row in successful:
+            try:
+                value = float(row[field])
+            except (KeyError, TypeError, ValueError):
+                continue
+            if math.isfinite(value):
+                values.append(value)
+        if values:
+            print(f"  {field}: median={statistics.median(values):.6g}, "
+                  f"p95={percentile(values, 0.95):.6g}, max={max(values):.6g}")
+
+
+if __name__ == "__main__":
+    main()

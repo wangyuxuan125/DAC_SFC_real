@@ -153,6 +153,24 @@
         <!-- 是否生成多拓扑轨迹（用于避免局部最优，尝试不同路径） -->
         <param name="manager/use_multitopology_trajs" value="$(arg use_multitopology_trajs)" type="bool"/>
         <param name="manager/drone_id" value="$(arg drone_id)"/>
+        <!-- Keep shadow_only=true for the first onboard dry runs. Change only
+             this flag to false after the CSV and RViz route checks pass. -->
+        <param name="manager/dac_sfc/enabled" value="true" type="bool"/>
+        <param name="manager/dac_sfc/shadow_only" value="true" type="bool"/>
+        <param name="manager/dac_sfc/fallback_to_ego" value="true" type="bool"/>
+        <param name="manager/dac_sfc/data_source" value="onboard" type="string"/>
+        <param name="manager/dac_sfc/log_enabled" value="true" type="bool"/>
+        <param name="manager/dac_sfc/log_directory" value="/tmp/dac_sfc_deployment" type="string"/>
+        <param name="manager/dac_sfc/max_segment_length" value="1.0" type="double"/>
+        <param name="manager/dac_sfc/max_extra_radius" value="1.0" type="double"/>
+        <param name="manager/dac_sfc/overlap_radius" value="0.04" type="double"/>
+        <param name="manager/dac_sfc/quadrature_resolution" value="16" type="int"/>
+        <!-- Replace these airframe values before active flight. -->
+        <param name="manager/dac_sfc/vehicle_mass" value="0.61" type="double"/>
+        <param name="manager/dac_sfc/max_body_rate" value="2.1" type="double"/>
+        <param name="manager/dac_sfc/max_tilt_angle" value="1.05" type="double"/>
+        <param name="manager/dac_sfc/min_thrust" value="2.0" type="double"/>
+        <param name="manager/dac_sfc/max_thrust" value="12.0" type="double"/>
         <!-- trajectory optimization -->
         <!-- 每段轨迹的采样点数，用于约束优化 -->
         <param name="optimization/constraint_points_perPiece" value="5" type="int"/>

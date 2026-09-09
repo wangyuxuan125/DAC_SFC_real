@@ -902,6 +902,76 @@ void GridMap::publishMapInflate()
   map_inf_pub_.publish(cloud_msg);
 }
 
+bool GridMap::getInflatedMapBounds(Eigen::Vector3d &lower,
+                                   Eigen::Vector3d &upper) const
+{
+  if (!mp_.have_initialized_)
+    return false;
+
+  lower = md_.ringbuffer_inf_lowbound3d_;
+  upper = md_.ringbuffer_inf_upbound3d_;
+  if (mp_.enable_virtual_walll_)
+  {
+    lower(2) = std::max(lower(2), mp_.virtual_ground_);
+    upper(2) = std::min(upper(2), mp_.virtual_ceil_);
+  }
+  return lower.allFinite() && upper.allFinite() &&
+         (upper.array() > lower.array()).all();
+}
+
+void GridMap::getInflatedSurfacePointsInBox(
+    const Eigen::Vector3d &lower,
+    const Eigen::Vector3d &upper,
+    std::vector<Eigen::Vector3d> &points)
+{
+  points.clear();
+  if (!mp_.have_initialized_ || !lower.allFinite() || !upper.allFinite())
+    return;
+
+  Eigen::Vector3d map_lower, map_upper;
+  if (!getInflatedMapBounds(map_lower, map_upper))
+    return;
+
+  const Eigen::Vector3d clipped_lower = lower.cwiseMax(map_lower);
+  const Eigen::Vector3d clipped_upper = upper.cwiseMin(map_upper);
+  if ((clipped_upper.array() < clipped_lower.array()).any())
+    return;
+
+  Eigen::Vector3i lower_id = pos2GlobalIdx(clipped_lower);
+  Eigen::Vector3i upper_id = pos2GlobalIdx(clipped_upper);
+  lower_id = lower_id.cwiseMax(md_.ringbuffer_inf_lowbound3i_);
+  upper_id = upper_id.cwiseMin(md_.ringbuffer_inf_upbound3i_);
+
+  static const Eigen::Vector3i neighbors[6] = {
+      Eigen::Vector3i(1, 0, 0), Eigen::Vector3i(-1, 0, 0),
+      Eigen::Vector3i(0, 1, 0), Eigen::Vector3i(0, -1, 0),
+      Eigen::Vector3i(0, 0, 1), Eigen::Vector3i(0, 0, -1)};
+
+  for (int x = lower_id(0); x <= upper_id(0); ++x)
+    for (int y = lower_id(1); y <= upper_id(1); ++y)
+      for (int z = lower_id(2); z <= upper_id(2); ++z)
+      {
+        const Eigen::Vector3i id(x, y, z);
+        if (!isInInfBuf(id) ||
+            md_.occupancy_buffer_inflate_[globalIdx2InfBufIdx(id)] == 0)
+          continue;
+
+        bool surface = false;
+        for (const Eigen::Vector3i &offset : neighbors)
+        {
+          const Eigen::Vector3i neighbor = id + offset;
+          if (!isInInfBuf(neighbor) ||
+              md_.occupancy_buffer_inflate_[globalIdx2InfBufIdx(neighbor)] == 0)
+          {
+            surface = true;
+            break;
+          }
+        }
+        if (surface)
+          points.push_back(globalIdx2Pos(id));
+      }
+}
+
 void GridMap::testIndexingCost()
 {
   if (!mp_.have_initialized_)

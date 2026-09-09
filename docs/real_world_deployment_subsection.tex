@@ -1,0 +1,41 @@
+% Place this subsection at the end of the Experiments section, immediately
+% before Conclusion. Replace every \placeholder after collecting logs.
+\subsection{Onboard Deployment Feasibility}
+\label{sec:onboard_deployment}
+
+We further integrated DAC-SFC into an onboard receding-horizon planning stack
+to assess deployment feasibility.  The original EGO-Planner-v2 map, finite
+local target, trajectory server, and flight-control interfaces were retained.
+For each replanning request, a collision-free A* path was shortened by
+farthest-visible connections and divided into segments of at most
+$1.0\,\mathrm{m}$.  The resulting polyline was passed to the same unoptimized
+MINCO deformation probe, CSGN construction, Active-Witness corridor generator,
+and GCOPTER backend used in the main experiments.  The generated quintic
+trajectory was converted directly to the existing trajectory-server format.
+An independent check against the inflated local occupancy map was required
+before trajectory activation; planning failures retained the original EGO
+planner as a fallback.
+
+The purpose of this study is to verify online execution and interface
+compatibility rather than to provide another algorithm comparison.  We record
+the A* search, route-shortening, deformation-probe, CSGN, corridor-generation,
+optimizer-setup, and optimization times, together with the number of corridor
+facets and geometric face evaluations per objective/gradient call.  During
+development away from the vehicle, the existing simulator supplied the depth,
+pose, and odometry interfaces.  The same logging and safety gates were then
+used unchanged for onboard trials.
+
+Across \placeholder{N} onboard replanning attempts, the complete DAC-SFC
+pipeline succeeded in \placeholder{success-rate}\% of the attempts, with
+\placeholder{fallback-count} fallback activations.  Median and 95th-percentile
+end-to-end planning latency were \placeholder{median-total} and
+\placeholder{p95-total}\,ms, respectively.  The median optimization latency was
+\placeholder{median-opt}\,ms, while the generated corridors contained a median
+of \placeholder{median-faces} facets, corresponding to
+\placeholder{median-geo-evals} geometric face evaluations per
+objective/gradient call.  All activated trajectories passed the independent
+inflated-map check; the observed maximum velocity and acceleration were
+\placeholder{max-velocity}\,$\mathrm{m\,s^{-1}}$ and
+\placeholder{max-acceleration}\,$\mathrm{m\,s^{-2}}$.  These results demonstrate
+that DAC-SFC can be executed within the onboard replanning loop using the
+existing sensing and control interfaces.

@@ -1,6 +1,9 @@
 // #include <fstream>
 #include <plan_manage/planner_manager.h>
 #include <thread>
+#include <algorithm>
+#include <chrono>
+#include <cmath>
 #include "visualization_msgs/Marker.h" // zx-todo
 
 namespace ego_planner
@@ -24,8 +27,66 @@ namespace ego_planner
     nh.param("manager/use_multitopology_trajs", pp_.use_multitopology_trajs, false);
     nh.param("manager/drone_id", pp_.drone_id, -1);
 
+    nh.param("manager/dac_sfc/enabled", dac_sfc_enabled_, false);
+    nh.param("manager/dac_sfc/shadow_only", dac_sfc_shadow_only_, true);
+    nh.param("manager/dac_sfc/fallback_to_ego", dac_sfc_fallback_to_ego_, true);
+    nh.param<std::string>("manager/dac_sfc/data_source", dac_sfc_data_source_, "simulation");
+    nh.param("manager/dac_sfc/max_segment_length", dac_route_options_.max_segment_length, 1.0);
+    nh.param("manager/dac_sfc/line_sample_step_ratio", dac_route_options_.line_sample_step_ratio, 0.5);
+
+    dac_engine_options_.max_velocity = pp_.max_vel_;
+    nh.param("manager/dac_sfc/max_body_rate", dac_engine_options_.max_body_rate, 2.1);
+    nh.param("manager/dac_sfc/max_tilt_angle", dac_engine_options_.max_tilt_angle, 1.05);
+    nh.param("manager/dac_sfc/min_thrust", dac_engine_options_.min_thrust, 2.0);
+    nh.param("manager/dac_sfc/max_thrust", dac_engine_options_.max_thrust, 12.0);
+    nh.param("manager/dac_sfc/vehicle_mass", dac_engine_options_.vehicle_mass, 0.61);
+    nh.param("manager/dac_sfc/gravity", dac_engine_options_.gravity, 9.8);
+    nh.param("manager/dac_sfc/horizontal_drag", dac_engine_options_.horizontal_drag, 0.70);
+    nh.param("manager/dac_sfc/vertical_drag", dac_engine_options_.vertical_drag, 0.80);
+    nh.param("manager/dac_sfc/parasitic_drag", dac_engine_options_.parasitic_drag, 0.01);
+    nh.param("manager/dac_sfc/speed_smoothing", dac_engine_options_.speed_smoothing, 1.0e-4);
+    nh.param("manager/dac_sfc/time_weight", dac_engine_options_.time_weight, 20.0);
+    nh.param("manager/dac_sfc/position_weight", dac_engine_options_.position_weight, 1.0e4);
+    nh.param("manager/dac_sfc/velocity_weight", dac_engine_options_.velocity_weight, 1.0e4);
+    nh.param("manager/dac_sfc/body_rate_weight", dac_engine_options_.body_rate_weight, 1.0e4);
+    nh.param("manager/dac_sfc/tilt_weight", dac_engine_options_.tilt_weight, 1.0e4);
+    nh.param("manager/dac_sfc/thrust_weight", dac_engine_options_.thrust_weight, 1.0e5);
+    nh.param("manager/dac_sfc/smoothing_epsilon", dac_engine_options_.smoothing_epsilon, 1.0e-2);
+    nh.param("manager/dac_sfc/quadrature_resolution", dac_engine_options_.quadrature_resolution, 16);
+    nh.param("manager/dac_sfc/relative_cost_tolerance", dac_engine_options_.relative_cost_tolerance, 1.0e-5);
+    nh.param("manager/dac_sfc/guide_reference_speed_ratio", dac_engine_options_.guide_reference_speed_ratio, 0.5);
+    nh.param("manager/dac_sfc/csgn_displacement_step", dac_engine_options_.csgn_displacement_step, 0.01);
+    nh.param("manager/dac_sfc/csgn_relative_damping", dac_engine_options_.csgn_relative_damping, 1.0e-3);
+    nh.param("manager/dac_sfc/csgn_proximity_power", dac_engine_options_.csgn_proximity_power, 4.0);
+    nh.param("manager/dac_sfc/max_corridor_anisotropy", dac_engine_options_.max_corridor_anisotropy, 10.0);
+    nh.param("manager/dac_sfc/max_extra_radius", dac_engine_options_.max_extra_radius, 1.0);
+    nh.param("manager/dac_sfc/min_extra_ratio", dac_engine_options_.min_extra_ratio, 0.25);
+    nh.param("manager/dac_sfc/overlap_radius", dac_engine_options_.overlap_radius, 0.04);
+    nh.param("manager/dac_sfc/map_boundary_margin", dac_engine_options_.map_boundary_margin, 0.02);
+    nh.param("manager/dac_sfc/max_final_corridor_violation", dac_engine_options_.max_final_corridor_violation, 0.02);
+
+    bool dac_log_enabled = true;
+    std::string dac_log_directory;
+    int astar_pool_xy = 100;
+    int astar_pool_z = 60;
+    nh.param("manager/dac_sfc/log_enabled", dac_log_enabled, true);
+    nh.param<std::string>("manager/dac_sfc/log_directory", dac_log_directory,
+                          "/tmp/dac_sfc_deployment");
+    nh.param("manager/dac_sfc/astar_pool_xy", astar_pool_xy, 100);
+    nh.param("manager/dac_sfc/astar_pool_z", astar_pool_z, 60);
+
     grid_map_.reset(new GridMap);
     grid_map_->initMap(nh);
+
+    if (dac_sfc_enabled_)
+    {
+      dac_route_adapter_.reset(new dac_sfc_deployment::DacRouteAdapter);
+      dac_route_adapter_->initialize(
+          grid_map_, Eigen::Vector3i(std::max(astar_pool_xy, 10),
+                                    std::max(astar_pool_xy, 10),
+                                    std::max(astar_pool_z, 10)));
+    }
+    dac_sfc_logger_.configure(dac_log_enabled, dac_log_directory);
 
     ploy_traj_opt_.reset(new PolyTrajOptimizer);
     ploy_traj_opt_->setParam(nh);
@@ -43,6 +104,23 @@ namespace ego_planner
       const Eigen::Vector3d &local_target_vel, const bool flag_polyInit,
       const bool flag_randomPolyTraj, const bool touch_goal)
   {
+    if (dac_sfc_enabled_)
+    {
+      bool trajectory_activated = false;
+      const bool dac_success = dacSfcReplan(
+          start_pt, start_vel, start_acc, local_target_pt, local_target_vel,
+          touch_goal, trajectory_activated);
+
+      if (trajectory_activated)
+        return true;
+
+      if (!dac_sfc_shadow_only_ && !dac_success && !dac_sfc_fallback_to_ego_)
+        return false;
+
+      if (!dac_sfc_shadow_only_ && !dac_success)
+        ROS_WARN("[DAC-SFC] Pipeline failed; using the configured EGO fallback.");
+    }
+
     ros::Time t_start = ros::Time::now();
     ros::Duration t_init, t_opt;
 
@@ -378,6 +456,216 @@ namespace ego_planner
     }
 
     return ret;
+  }
+
+  bool EGOPlannerManager::setLocalTraj(const poly_traj::Trajectory &trajectory,
+                                       const bool touch_goal)
+  {
+    if (trajectory.getPieceNum() <= 0)
+      return false;
+
+    poly_traj::Trajectory trajectory_copy = trajectory;
+    ploy_traj_opt_->setIfTouchGoal(touch_goal);
+
+    const int control_point_count =
+        trajectory_copy.getPieceNum() * getCpsNumPrePiece() + 1;
+    const int id_end = touch_goal
+                           ? control_point_count - 1
+                           : control_point_count - 1 - (control_point_count - 2) / 3;
+
+    PtsChk_t points_to_check;
+    if (!ploy_traj_opt_->computePointsToCheck(
+            trajectory_copy, id_end, points_to_check) ||
+        points_to_check.empty())
+      return false;
+
+    traj_.setLocalTraj(trajectory_copy, points_to_check, ros::Time::now().toSec());
+    return true;
+  }
+
+  bool EGOPlannerManager::trajectoryIsCollisionFree(
+      const poly_traj::Trajectory &trajectory) const
+  {
+    if (trajectory.getPieceNum() <= 0 || !grid_map_)
+      return false;
+
+    const double duration = trajectory.getTotalDuration();
+    if (!std::isfinite(duration) || duration <= 0.0)
+      return false;
+
+    const double time_step = std::max(
+        0.002, grid_map_->getResolution() /
+                   (2.0 * std::max(dac_engine_options_.max_velocity, 0.1)));
+    const int samples = std::max(1, static_cast<int>(std::ceil(duration / time_step)));
+    for (int i = 0; i <= samples; ++i)
+    {
+      const double time = duration * static_cast<double>(i) /
+                          static_cast<double>(samples);
+      const Eigen::Vector3d point = trajectory.getPos(time);
+      if (!point.allFinite() || !grid_map_->isInInflatedMap(point) ||
+          grid_map_->getInflateOccupancy(point) != 0)
+        return false;
+    }
+    return true;
+  }
+
+  bool EGOPlannerManager::dacSfcReplan(
+      const Eigen::Vector3d &start_pt, const Eigen::Vector3d &start_vel,
+      const Eigen::Vector3d &start_acc, const Eigen::Vector3d &local_target_pt,
+      const Eigen::Vector3d &local_target_vel, const bool touch_goal,
+      bool &trajectory_activated)
+  {
+    using Clock = std::chrono::steady_clock;
+    const Clock::time_point total_started = Clock::now();
+    trajectory_activated = false;
+
+    dac_sfc_deployment::DeploymentRecord record;
+    record.timestamp_s = ros::Time::now().toSec();
+    record.run_id = ++dac_sfc_run_id_;
+    record.data_source = dac_sfc_data_source_;
+    record.execution_mode = dac_sfc_shadow_only_ ? "shadow" : "active";
+
+    std::vector<Eigen::Vector3d> raw_path;
+    std::vector<Eigen::Vector3d> route;
+    if (!dac_route_adapter_ ||
+        !dac_route_adapter_->build(start_pt, local_target_pt, dac_route_options_,
+                                   raw_path, route, record.route))
+    {
+      record.failure_stage = record.route.failure_stage.empty()
+                                 ? "route"
+                                 : record.route.failure_stage;
+      record.ego_fallback_used = !dac_sfc_shadow_only_ && dac_sfc_fallback_to_ego_;
+      record.total_ms = std::chrono::duration<double, std::milli>(
+                            Clock::now() - total_started)
+                            .count();
+      dac_sfc_logger_.append(record);
+      return false;
+    }
+
+    if (visualization_)
+    {
+      visualization_->displayAStarList({raw_path}, 800);
+      visualization_->displayInitPathList(route, 0.12, 90);
+    }
+
+    Eigen::Vector3d map_lower, map_upper;
+    if (!grid_map_->getInflatedMapBounds(map_lower, map_upper))
+    {
+      record.failure_stage = "map_bounds";
+      record.ego_fallback_used = !dac_sfc_shadow_only_ && dac_sfc_fallback_to_ego_;
+      record.total_ms = std::chrono::duration<double, std::milli>(
+                            Clock::now() - total_started)
+                            .count();
+      dac_sfc_logger_.append(record);
+      return false;
+    }
+
+    Eigen::Vector3d obstacle_lower = route.front();
+    Eigen::Vector3d obstacle_upper = route.front();
+    for (const Eigen::Vector3d &point : route)
+    {
+      obstacle_lower = obstacle_lower.cwiseMin(point);
+      obstacle_upper = obstacle_upper.cwiseMax(point);
+    }
+    const double obstacle_padding = dac_engine_options_.max_extra_radius +
+                                    dac_engine_options_.overlap_radius +
+                                    2.0 * grid_map_->getResolution();
+    obstacle_lower.array() -= obstacle_padding;
+    obstacle_upper.array() += obstacle_padding;
+
+    std::vector<Eigen::Vector3d> obstacle_surface;
+    const Clock::time_point obstacle_started = Clock::now();
+    grid_map_->getInflatedSurfacePointsInBox(
+        obstacle_lower, obstacle_upper, obstacle_surface);
+    record.obstacle_extract_ms = std::chrono::duration<double, std::milli>(
+                                     Clock::now() - obstacle_started)
+                                     .count();
+
+    Eigen::Matrix3d initial_pva;
+    initial_pva.col(0) = start_pt;
+    initial_pva.col(1) = start_vel;
+    initial_pva.col(2) = start_acc;
+    Eigen::Matrix3d terminal_pva = Eigen::Matrix3d::Zero();
+    terminal_pva.col(0) = local_target_pt;
+    terminal_pva.col(1) = local_target_vel;
+
+    dac_sfc_deployment::EngineResult engine_result;
+    const bool engine_success = dac_sfc_engine_.plan(
+        route, obstacle_surface, map_lower, map_upper, initial_pva, terminal_pva,
+        dac_engine_options_, engine_result);
+    record.engine = engine_result.diagnostics;
+
+    poly_traj::Trajectory candidate;
+    bool sampled_collision_free = false;
+    bool dynamic_limits_satisfied = false;
+    if (engine_success)
+    {
+      std::vector<double> durations(engine_result.durations.size());
+      std::vector<poly_traj::CoefficientMat> coefficients;
+      coefficients.reserve(engine_result.coefficients.size());
+      for (int i = 0; i < engine_result.durations.size(); ++i)
+        durations[i] = engine_result.durations(i);
+      for (const auto &coefficient : engine_result.coefficients)
+        coefficients.push_back(coefficient);
+      candidate = poly_traj::Trajectory(durations, coefficients);
+      sampled_collision_free = trajectoryIsCollisionFree(candidate);
+      const double tolerance = 1.0 + std::max(0.0, pp_.feasibility_tolerance_);
+      dynamic_limits_satisfied =
+          (pp_.max_vel_ <= 0.0 ||
+           engine_result.diagnostics.max_velocity <= pp_.max_vel_ * tolerance) &&
+          (pp_.max_acc_ <= 0.0 ||
+           engine_result.diagnostics.max_acceleration <= pp_.max_acc_ * tolerance);
+    }
+
+    record.sampled_collision_free = sampled_collision_free;
+    record.pipeline_success =
+        engine_success && sampled_collision_free && dynamic_limits_satisfied;
+    if (!engine_success)
+      record.failure_stage = engine_result.diagnostics.failure_stage;
+    else if (!sampled_collision_free)
+      record.failure_stage = "inflated_map_collision_check";
+    else if (!dynamic_limits_satisfied)
+      record.failure_stage = "dynamic_limits";
+
+    if (record.pipeline_success && !dac_sfc_shadow_only_)
+    {
+      trajectory_activated = setLocalTraj(candidate, touch_goal);
+      if (!trajectory_activated)
+      {
+        record.failure_stage = "trajectory_activation";
+        record.pipeline_success = false;
+      }
+      else if (visualization_)
+      {
+        Eigen::MatrixXd junctions(3, candidate.getPieceNum() + 1);
+        for (int i = 0; i <= candidate.getPieceNum(); ++i)
+          junctions.col(i) = candidate.getJuncPos(i);
+        visualization_->displayOptimalList(junctions, 90);
+      }
+    }
+
+    record.trajectory_activated = trajectory_activated;
+    record.ego_fallback_used = !dac_sfc_shadow_only_ && !trajectory_activated &&
+                               dac_sfc_fallback_to_ego_;
+    record.total_ms = std::chrono::duration<double, std::milli>(
+                          Clock::now() - total_started)
+                          .count();
+    if (!dac_sfc_logger_.append(record))
+      ROS_WARN_THROTTLE(2.0, "[DAC-SFC] Could not append deployment CSV log.");
+
+    ROS_INFO_STREAM("[DAC-SFC] mode=" << record.execution_mode
+                    << " success=" << record.pipeline_success
+                    << " route=" << record.route.raw_point_count << "->"
+                    << record.route.sparse_point_count
+                    << " corridors=" << record.engine.corridor_count
+                    << " faces=" << record.engine.total_faces
+                    << " geo/call=" << record.engine.geometry_evaluations_per_call
+                    << " total_ms=" << record.total_ms
+                    << (record.failure_stage.empty()
+                            ? std::string()
+                            : " failure=" + record.failure_stage));
+
+    return record.pipeline_success;
   }
 
   bool EGOPlannerManager::EmergencyStop(Eigen::Vector3d stop_pos)
