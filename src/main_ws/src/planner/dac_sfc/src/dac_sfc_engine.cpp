@@ -120,18 +120,43 @@ bool DacSfcEngine::plan(const std::vector<Eigen::Vector3d> &route,
 
   gcopter::GCOPTER_PolytopeSFC metric_evaluator;
   gcopter::GCOPTER_PolytopeSFC::GaussNewtonDeformationMetrics metrics;
-  if (!metric_evaluator.setGaussNewtonReferenceState(
-          initial_pva, terminal_pva, inner_points, guide_times,
-          options.quadrature_resolution, magnitude_bounds, physical_parameters))
+  const bool single_piece_csgn_fallback = piece_count == 1;
+  const Clock::time_point csgn_started = Clock::now();
+  bool csgn_success = false;
+
+  if (single_piece_csgn_fallback)
   {
-    result.diagnostics.failure_stage = "csgn_setup";
-    return false;
+    // A one-piece trajectory has no internal waypoint to perturb, so its
+    // Cartesian Gauss-Newton deformation metric is unobservable.  The
+    // isotropic identity is the neutral limit: it adds no invented preferred
+    // direction while still allowing Active-Witness and GCOPTER to run.
+    metrics.resize(1);
+    metrics.front().valid = true;
+    metrics.front().failureReason = "single_piece_identity_fallback";
+    metrics.front().corridorUtility.setIdentity();
+    metrics.front().corridorUtilityEigenvalues.setOnes();
+    metrics.front().corridorAnisotropy = 1.0;
+    metrics.front().maxCorridorAnisotropyUsed =
+        options.max_corridor_anisotropy;
+    csgn_success = true;
+  }
+  else
+  {
+    if (!metric_evaluator.setGaussNewtonReferenceState(
+            initial_pva, terminal_pva, inner_points, guide_times,
+            options.quadrature_resolution, magnitude_bounds,
+            physical_parameters))
+    {
+      result.diagnostics.failure_stage = "csgn_setup";
+      return false;
+    }
+
+    csgn_success = metric_evaluator.computeGaussNewtonDeformationMetrics(
+        metrics, options.csgn_displacement_step,
+        options.csgn_relative_damping, options.csgn_proximity_power,
+        options.max_corridor_anisotropy);
   }
 
-  const Clock::time_point csgn_started = Clock::now();
-  const bool csgn_success = metric_evaluator.computeGaussNewtonDeformationMetrics(
-      metrics, options.csgn_displacement_step, options.csgn_relative_damping,
-      options.csgn_proximity_power, options.max_corridor_anisotropy);
   result.diagnostics.csgn_ms = millisecondsSince(csgn_started);
   if (!csgn_success || static_cast<int>(metrics.size()) != piece_count)
   {
@@ -147,7 +172,10 @@ bool DacSfcEngine::plan(const std::vector<Eigen::Vector3d> &route,
       result.diagnostics.failure_stage = "csgn_metric";
       return false;
     }
-    ++result.diagnostics.valid_csgn_metrics;
+    // Keep this counter as the number of metrics actually estimated by CSGN.
+    // Zero with a successful one-piece run identifies the isotropic fallback.
+    if (!single_piece_csgn_fallback)
+      ++result.diagnostics.valid_csgn_metrics;
     anisotropy_sum += metric.corridorAnisotropy;
     result.diagnostics.max_corridor_anisotropy =
         std::max(result.diagnostics.max_corridor_anisotropy,

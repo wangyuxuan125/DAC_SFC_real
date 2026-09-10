@@ -1,14 +1,17 @@
 #include <dac_sfc/dac_sfc_engine.h>
 
 #include <iostream>
+#include <string>
+#include <vector>
 
-int main()
+namespace
 {
-  std::vector<Eigen::Vector3d> route;
-  route.push_back(Eigen::Vector3d(-1.0, 0.0, 1.0));
-  route.push_back(Eigen::Vector3d(0.0, 0.2, 1.0));
-  route.push_back(Eigen::Vector3d(1.0, 0.0, 1.0));
 
+bool runCase(const std::string &label,
+             const std::vector<Eigen::Vector3d> &route,
+             const int expected_corridors,
+             const int expected_valid_csgn_metrics)
+{
   Eigen::Matrix3d initial_pva = Eigen::Matrix3d::Zero();
   Eigen::Matrix3d terminal_pva = Eigen::Matrix3d::Zero();
   initial_pva.col(0) = route.front();
@@ -28,20 +31,55 @@ int main()
 
   if (!success)
   {
-    std::cerr << "DAC-SFC engine self-test failed at: "
+    std::cerr << label << " failed at: "
               << result.diagnostics.failure_stage << std::endl;
-    return 1;
-  }
-  if (result.diagnostics.corridor_count != 2 ||
-      result.coefficients.size() != 2 || result.durations.size() != 2)
-  {
-    std::cerr << "Unexpected one-route-segment/one-corridor mapping." << std::endl;
-    return 2;
+    return false;
   }
 
-  std::cout << "DAC-SFC engine self-test passed: corridors="
+  if (result.diagnostics.corridor_count != expected_corridors ||
+      static_cast<int>(result.coefficients.size()) != expected_corridors ||
+      result.durations.size() != expected_corridors)
+  {
+    std::cerr << label << " has an unexpected segment/corridor mapping."
+              << std::endl;
+    return false;
+  }
+
+  if (result.diagnostics.valid_csgn_metrics !=
+      expected_valid_csgn_metrics)
+  {
+    std::cerr << label << " has an unexpected CSGN metric count: "
+              << result.diagnostics.valid_csgn_metrics << std::endl;
+    return false;
+  }
+
+  std::cout << label << " passed: corridors="
             << result.diagnostics.corridor_count
             << " faces=" << result.diagnostics.total_faces
-            << " duration=" << result.diagnostics.trajectory_duration << std::endl;
+            << " valid_csgn="
+            << result.diagnostics.valid_csgn_metrics
+            << " duration=" << result.diagnostics.trajectory_duration
+            << std::endl;
+  return true;
+}
+
+} // namespace
+
+int main()
+{
+  const std::vector<Eigen::Vector3d> multi_piece_route{
+      Eigen::Vector3d(-1.0, 0.0, 1.0),
+      Eigen::Vector3d(0.0, 0.2, 1.0),
+      Eigen::Vector3d(1.0, 0.0, 1.0)};
+  if (!runCase("multi-piece CSGN", multi_piece_route, 2, 2))
+    return 1;
+
+  const std::vector<Eigen::Vector3d> single_piece_route{
+      Eigen::Vector3d(0.0, 0.0, 1.0),
+      Eigen::Vector3d(0.075, 0.0, 1.0)};
+  if (!runCase("single-piece isotropic fallback",
+               single_piece_route, 1, 0))
+    return 2;
+
   return 0;
 }
