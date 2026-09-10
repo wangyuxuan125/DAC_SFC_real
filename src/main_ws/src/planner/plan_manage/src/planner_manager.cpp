@@ -81,6 +81,9 @@ namespace ego_planner
 
     grid_map_.reset(new GridMap);
     grid_map_->initMap(nh);
+    // Match the continuous SFC geometry to the complete occupied voxels used
+    // by getInflateOccupancy(), not merely their sampled center points.
+    dac_engine_options_.obstacle_voxel_size = grid_map_->getResolution();
 
     if (dac_sfc_enabled_)
     {
