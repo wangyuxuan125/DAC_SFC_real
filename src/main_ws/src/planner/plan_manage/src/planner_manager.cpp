@@ -774,6 +774,8 @@ namespace ego_planner
                     << " success=" << record.pipeline_success
                     << " route=" << record.route.raw_point_count << "->"
                     << record.route.sparse_point_count
+                    << " goal_adjusted=" << record.route.goal_adjusted
+                    << " goal_shift_m=" << record.route.goal_adjustment_distance
                     << " corridors=" << record.engine.corridor_count
                     << " faces=" << record.engine.total_faces
                     << " geo/call=" << record.engine.geometry_evaluations_per_call
