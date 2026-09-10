@@ -17,23 +17,13 @@ void DacRouteAdapter::initialize(const GridMap::Ptr &map,
 
 bool DacRouteAdapter::lineIsFree(const Eigen::Vector3d &start,
                                  const Eigen::Vector3d &end,
-                                 const double sample_step_ratio) const
+                                 const double clearance_radius) const
 {
-  if (!map_ || !start.allFinite() || !end.allFinite())
+  if (!map_ || !start.allFinite() || !end.allFinite() ||
+      !std::isfinite(clearance_radius) || clearance_radius < 0.0)
     return false;
 
-  const double length = (end - start).norm();
-  const double step = std::max(map_->getResolution() * sample_step_ratio, 1.0e-3);
-  const int samples = std::max(1, static_cast<int>(std::ceil(length / step)));
-
-  for (int i = 0; i <= samples; ++i)
-  {
-    const double alpha = static_cast<double>(i) / static_cast<double>(samples);
-    const Eigen::Vector3d point = (1.0 - alpha) * start + alpha * end;
-    if (!map_->isInInflatedMap(point) || map_->getInflateOccupancy(point) != 0)
-      return false;
-  }
-  return true;
+  return map_->isInflatedLineClear(start, end, clearance_radius);
 }
 
 double DacRouteAdapter::pathLength(const std::vector<Eigen::Vector3d> &path)
@@ -73,7 +63,9 @@ bool DacRouteAdapter::build(const Eigen::Vector3d &start,
   sparse_route.clear();
 
   if (!map_ || !astar_ || !start.allFinite() || !goal.allFinite() ||
-      options.max_segment_length <= 0.0 || options.line_sample_step_ratio <= 0.0)
+      options.max_segment_length <= 0.0 || options.line_sample_step_ratio <= 0.0 ||
+      !std::isfinite(options.clearance_radius) ||
+      options.clearance_radius < 0.0)
   {
     diagnostics.failure_stage = "route_input";
     return false;
@@ -102,13 +94,20 @@ bool DacRouteAdapter::build(const Eigen::Vector3d &start,
     diagnostics.failure_stage = "route_start_occupied";
     return false;
   }
+  if (!map_->isInflatedPointClear(start, options.clearance_radius))
+  {
+    diagnostics.failure_stage = "route_start_clearance";
+    return false;
+  }
 
   Eigen::Vector3d route_goal = goal;
-  if (map_->getInflateOccupancy(route_goal) != 0)
+  const int goal_occupancy = map_->getInflateOccupancy(route_goal);
+  if (!map_->isInflatedPointClear(route_goal, options.clearance_radius))
   {
     if (!allow_occupied_goal_adjustment)
     {
-      diagnostics.failure_stage = "route_goal_occupied";
+      diagnostics.failure_stage =
+          goal_occupancy != 0 ? "route_goal_occupied" : "route_goal_clearance";
       return false;
     }
 
@@ -116,7 +115,8 @@ bool DacRouteAdapter::build(const Eigen::Vector3d &start,
     const double goal_distance = goal_direction.norm();
     if (!std::isfinite(goal_distance) || goal_distance <= 1.0e-6)
     {
-      diagnostics.failure_stage = "route_goal_occupied";
+      diagnostics.failure_stage =
+          goal_occupancy != 0 ? "route_goal_occupied" : "route_goal_clearance";
       return false;
     }
 
@@ -132,13 +132,13 @@ bool DacRouteAdapter::build(const Eigen::Vector3d &start,
       const Eigen::Vector3d candidate = goal + offset * forward;
       if (!map_->isInInflatedMap(candidate))
         break;
-      if (map_->getInflateOccupancy(candidate) == 0)
+      if (map_->isInflatedPointClear(candidate, options.clearance_radius))
       {
         route_goal = candidate;
         diagnostics.goal_adjusted = true;
         diagnostics.goal_adjustment_distance = offset;
         adjusted = true;
-        ROS_WARN_STREAM("[DAC-SFC] Occupied local goal shifted forward by "
+        ROS_WARN_STREAM("[DAC-SFC] Unsafe local goal shifted forward by "
                         << offset << " m: " << goal.transpose()
                         << " -> " << route_goal.transpose());
         break;
@@ -154,7 +154,7 @@ bool DacRouteAdapter::build(const Eigen::Vector3d &start,
 
   const auto search_started = std::chrono::steady_clock::now();
   diagnostics.direct_path =
-      lineIsFree(start, route_goal, options.line_sample_step_ratio);
+      lineIsFree(start, route_goal, options.clearance_radius);
   if (diagnostics.direct_path)
   {
     raw_path.push_back(start);
@@ -163,7 +163,8 @@ bool DacRouteAdapter::build(const Eigen::Vector3d &start,
   else
   {
     const ASTAR_RET search_result =
-        astar_->AstarSearch(map_->getResolution(), start, route_goal, true);
+        astar_->AstarSearch(map_->getResolution(), start, route_goal, true,
+                            options.clearance_radius);
     if (search_result != ASTAR_RET::SUCCESS)
     {
       diagnostics.search_ms = std::chrono::duration<double, std::milli>(
@@ -228,7 +229,7 @@ bool DacRouteAdapter::build(const Eigen::Vector3d &start,
           options.max_segment_length + 1.0e-9)
         break;
       if (lineIsFree(raw_path[current], raw_path[candidate],
-                     options.line_sample_step_ratio))
+                     options.clearance_radius))
         best = candidate;
     }
 
