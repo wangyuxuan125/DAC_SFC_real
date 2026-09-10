@@ -1,10 +1,13 @@
 #include <dac_sfc/deployment_logger.h>
 
 #include <cerrno>
+#include <ctime>
 #include <fstream>
 #include <iomanip>
+#include <sstream>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 namespace dac_sfc_deployment
 {
@@ -50,8 +53,39 @@ bool fileIsEmpty(const std::string &path)
 
 void DeploymentLogger::configure(const bool enabled, const std::string &directory)
 {
+  std::lock_guard<std::mutex> lock(mutex_);
   enabled_ = enabled;
   directory_ = directory;
+  path_.clear();
+
+  if (!enabled_)
+    return;
+
+  const std::string runs_directory = directory_ + "/runs";
+  if (!ensureDirectory(runs_directory))
+    return;
+
+  const std::time_t now = std::time(nullptr);
+  std::tm local_time;
+  if (::localtime_r(&now, &local_time) == nullptr)
+    return;
+
+  std::ostringstream filename;
+  filename << runs_directory << "/dac_sfc_"
+           << std::put_time(&local_time, "%Y%m%d_%H%M%S")
+           << "_pid" << static_cast<long>(::getpid()) << ".csv";
+  path_ = filename.str();
+
+  // A stable pointer file lets analysis commands select the current planner
+  // session without slicing or mixing the legacy aggregate CSV.
+  std::ofstream latest((directory_ + "/latest_csv_path.txt").c_str(),
+                       std::ios::out | std::ios::trunc);
+  if (!latest)
+  {
+    path_.clear();
+    return;
+  }
+  latest << path_ << '\n';
 }
 
 bool DeploymentLogger::append(const DeploymentRecord &record)
@@ -60,12 +94,11 @@ bool DeploymentLogger::append(const DeploymentRecord &record)
     return true;
 
   std::lock_guard<std::mutex> lock(mutex_);
-  if (!ensureDirectory(directory_))
+  if (path_.empty())
     return false;
 
-  const std::string path = directory_ + "/dac_sfc_deployment.csv";
-  const bool write_header = fileIsEmpty(path);
-  std::ofstream output(path.c_str(), std::ios::out | std::ios::app);
+  const bool write_header = fileIsEmpty(path_);
+  std::ofstream output(path_.c_str(), std::ios::out | std::ios::app);
   if (!output)
     return false;
 
