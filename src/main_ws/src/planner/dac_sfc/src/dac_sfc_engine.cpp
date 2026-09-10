@@ -15,6 +15,7 @@
 #include <chrono>
 #include <cmath>
 #include <limits>
+#include <iostream>
 
 namespace dac_sfc_deployment
 {
@@ -237,13 +238,38 @@ bool DacSfcEngine::plan(const std::vector<Eigen::Vector3d> &route,
       // the discrete A* segment too tight instead of handing an invalid SFC to
       // GCOPTER.
       const double containment_tolerance = 1.0e-8;
-      const double start_violation =
-          (corridor.leftCols<3>() * route[i] + corridor.col(3)).maxCoeff();
-      const double end_violation =
-          (corridor.leftCols<3>() * route[i + 1] + corridor.col(3)).maxCoeff();
+      const Eigen::VectorXd start_face_values =
+          corridor.leftCols<3>() * route[i] + corridor.col(3);
+      const Eigen::VectorXd end_face_values =
+          corridor.leftCols<3>() * route[i + 1] + corridor.col(3);
+      Eigen::Index start_face = 0;
+      Eigen::Index end_face = 0;
+      const double start_violation = start_face_values.maxCoeff(&start_face);
+      const double end_violation = end_face_values.maxCoeff(&end_face);
       if (start_violation > containment_tolerance ||
           end_violation > containment_tolerance)
       {
+        const bool start_is_worst = start_violation >= end_violation;
+        const Eigen::Index worst_face = start_is_worst ? start_face : end_face;
+        const double worst_violation =
+            start_is_worst ? start_violation : end_violation;
+        const Eigen::Vector3d worst_normal =
+            corridor.block<1, 3>(worst_face, 0).transpose();
+        const double voxel_shift =
+            half_voxel * worst_normal.cwiseAbs().sum();
+        std::cerr << "[DAC-SFC] Voxel clearance rejected segment=" << i
+                  << " face=" << worst_face
+                  << " domain_faces=" << diagnostics.domain_face_count
+                  << " post_violation_m=" << worst_violation /
+                         std::max(worst_normal.norm(), 1.0e-12)
+                  << " pre_violation_m=" <<
+                         (worst_violation - voxel_shift) /
+                         std::max(worst_normal.norm(), 1.0e-12)
+                  << " voxel_shift_m=" << voxel_shift /
+                         std::max(worst_normal.norm(), 1.0e-12)
+                  << " start=" << route[i].transpose()
+                  << " end=" << route[i + 1].transpose()
+                  << std::endl;
         result.diagnostics.corridor_ms = millisecondsSince(corridor_started);
         result.diagnostics.failure_stage = "voxel_clearance_corridor";
         return false;
