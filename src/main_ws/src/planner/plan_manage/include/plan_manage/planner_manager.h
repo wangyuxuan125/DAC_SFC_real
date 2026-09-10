@@ -15,6 +15,7 @@
 #include <dac_sfc/dac_route_adapter.h>
 #include <dac_sfc/dac_sfc_engine.h>
 #include <dac_sfc/deployment_logger.h>
+#include <decomp_ros_msgs/PolyhedronArray.h>
 
 namespace ego_planner
 {
@@ -73,6 +74,9 @@ namespace ego_planner
     bool dac_sfc_shadow_only_{true};
     bool dac_sfc_fallback_to_ego_{true};
     std::string dac_sfc_data_source_{"simulation"};
+    bool dac_sfc_visualization_enabled_{true};
+    std::string dac_sfc_visualization_frame_{"world"};
+    ros::Publisher dac_sfc_polyhedron_pub_;
     dac_sfc_deployment::RouteOptions dac_route_options_;
     dac_sfc_deployment::EngineOptions dac_engine_options_;
     dac_sfc_deployment::DacRouteAdapter::Ptr dac_route_adapter_;
@@ -86,6 +90,8 @@ namespace ego_planner
         const Eigen::Vector3d &local_target_vel, const bool touch_goal,
         bool &trajectory_activated);
     bool trajectoryIsCollisionFree(const poly_traj::Trajectory &trajectory) const;
+    void publishDacSfcCorridors(
+        const std::vector<Eigen::MatrixX4d> &corridors) const;
 
     int continous_failures_count_{0};
 

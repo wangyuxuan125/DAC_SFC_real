@@ -83,6 +83,19 @@ bool DacRouteAdapter::build(const Eigen::Vector3d &start,
     return false;
   }
 
+  const int start_occupancy = map_->getInflateOccupancy(start);
+  const int goal_occupancy = map_->getInflateOccupancy(goal);
+  if (start_occupancy != 0)
+  {
+    diagnostics.failure_stage = "route_start_occupied";
+    return false;
+  }
+  if (goal_occupancy != 0)
+  {
+    diagnostics.failure_stage = "route_goal_occupied";
+    return false;
+  }
+
   const auto search_started = std::chrono::steady_clock::now();
   diagnostics.direct_path = lineIsFree(start, goal, options.line_sample_step_ratio);
   if (diagnostics.direct_path)
@@ -98,7 +111,8 @@ bool DacRouteAdapter::build(const Eigen::Vector3d &start,
       diagnostics.search_ms = std::chrono::duration<double, std::milli>(
                                   std::chrono::steady_clock::now() - search_started)
                                   .count();
-      diagnostics.failure_stage = "astar";
+      diagnostics.failure_stage =
+          search_result == ASTAR_RET::INIT_ERR ? "astar_init" : "astar_search";
       return false;
     }
     raw_path = astar_->getPath();

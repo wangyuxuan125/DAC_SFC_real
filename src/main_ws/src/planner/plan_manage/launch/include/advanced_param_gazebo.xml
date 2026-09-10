@@ -160,6 +160,8 @@
         <param name="manager/dac_sfc/shadow_only" value="true" type="bool"/>
         <param name="manager/dac_sfc/fallback_to_ego" value="true" type="bool"/>
         <param name="manager/dac_sfc/data_source" value="simulation" type="string"/>
+        <param name="manager/dac_sfc/visualization_enabled" value="true" type="bool"/>
+        <param name="manager/dac_sfc/visualization_frame" value="world" type="string"/>
         <param name="manager/dac_sfc/log_enabled" value="true" type="bool"/>
         <param name="manager/dac_sfc/log_directory" value="/tmp/dac_sfc_deployment" type="string"/>
         <param name="manager/dac_sfc/max_segment_length" value="1.0" type="double"/>

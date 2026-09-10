@@ -31,6 +31,10 @@ namespace ego_planner
     nh.param("manager/dac_sfc/shadow_only", dac_sfc_shadow_only_, true);
     nh.param("manager/dac_sfc/fallback_to_ego", dac_sfc_fallback_to_ego_, true);
     nh.param<std::string>("manager/dac_sfc/data_source", dac_sfc_data_source_, "simulation");
+    nh.param("manager/dac_sfc/visualization_enabled",
+             dac_sfc_visualization_enabled_, true);
+    nh.param<std::string>("manager/dac_sfc/visualization_frame",
+                          dac_sfc_visualization_frame_, "world");
     nh.param("manager/dac_sfc/max_segment_length", dac_route_options_.max_segment_length, 1.0);
     nh.param("manager/dac_sfc/line_sample_step_ratio", dac_route_options_.line_sample_step_ratio, 0.5);
 
@@ -87,6 +91,12 @@ namespace ego_planner
                                     std::max(astar_pool_z, 10)));
     }
     dac_sfc_logger_.configure(dac_log_enabled, dac_log_directory);
+    if (dac_sfc_enabled_ && dac_sfc_visualization_enabled_)
+    {
+      dac_sfc_polyhedron_pub_ =
+          nh.advertise<decomp_ros_msgs::PolyhedronArray>(
+              "dac_sfc/polyhedron_array", 1, true);
+    }
 
     ploy_traj_opt_.reset(new PolyTrajOptimizer);
     ploy_traj_opt_->setParam(nh);
@@ -509,6 +519,58 @@ namespace ego_planner
     return true;
   }
 
+  void EGOPlannerManager::publishDacSfcCorridors(
+      const std::vector<Eigen::MatrixX4d> &corridors) const
+  {
+    if (!dac_sfc_visualization_enabled_ ||
+        dac_sfc_polyhedron_pub_.getTopic().empty())
+      return;
+
+    decomp_ros_msgs::PolyhedronArray message;
+    message.header.stamp = ros::Time::now();
+    message.header.frame_id = dac_sfc_visualization_frame_;
+    message.polyhedrons.reserve(corridors.size());
+
+    for (const Eigen::MatrixX4d &corridor : corridors)
+    {
+      decomp_ros_msgs::Polyhedron polyhedron;
+      polyhedron.points.reserve(corridor.rows());
+      polyhedron.normals.reserve(corridor.rows());
+
+      for (int face_id = 0; face_id < corridor.rows(); ++face_id)
+      {
+        const Eigen::Vector3d coefficients =
+            corridor.block<1, 3>(face_id, 0).transpose();
+        const double squared_norm = coefficients.squaredNorm();
+        const double offset = corridor(face_id, 3);
+        if (!coefficients.allFinite() || !std::isfinite(offset) ||
+            squared_norm <= 1.0e-18)
+          continue;
+
+        const Eigen::Vector3d point =
+            (-offset / squared_norm) * coefficients;
+        const Eigen::Vector3d normal =
+            coefficients / std::sqrt(squared_norm);
+
+        geometry_msgs::Point point_message;
+        point_message.x = point.x();
+        point_message.y = point.y();
+        point_message.z = point.z();
+        geometry_msgs::Point normal_message;
+        normal_message.x = normal.x();
+        normal_message.y = normal.y();
+        normal_message.z = normal.z();
+        polyhedron.points.push_back(point_message);
+        polyhedron.normals.push_back(normal_message);
+      }
+
+      if (!polyhedron.points.empty())
+        message.polyhedrons.push_back(polyhedron);
+    }
+
+    dac_sfc_polyhedron_pub_.publish(message);
+  }
+
   bool EGOPlannerManager::dacSfcReplan(
       const Eigen::Vector3d &start_pt, const Eigen::Vector3d &start_vel,
       const Eigen::Vector3d &start_acc, const Eigen::Vector3d &local_target_pt,
@@ -539,6 +601,7 @@ namespace ego_planner
                             Clock::now() - total_started)
                             .count();
       dac_sfc_logger_.append(record);
+      publishDacSfcCorridors(std::vector<Eigen::MatrixX4d>());
       return false;
     }
 
@@ -557,6 +620,7 @@ namespace ego_planner
                             Clock::now() - total_started)
                             .count();
       dac_sfc_logger_.append(record);
+      publishDacSfcCorridors(std::vector<Eigen::MatrixX4d>());
       return false;
     }
 
@@ -594,6 +658,10 @@ namespace ego_planner
         route, obstacle_surface, map_lower, map_upper, initial_pva, terminal_pva,
         dac_engine_options_, engine_result);
     record.engine = engine_result.diagnostics;
+    if (engine_success)
+      publishDacSfcCorridors(engine_result.corridors);
+    else
+      publishDacSfcCorridors(std::vector<Eigen::MatrixX4d>());
 
     poly_traj::Trajectory candidate;
     bool sampled_collision_free = false;
