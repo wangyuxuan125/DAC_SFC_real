@@ -147,6 +147,11 @@ public:
   inline double getResolution();
   inline bool isInInflatedMap(const Eigen::Vector3d &pos);
   bool getInflatedMapBounds(Eigen::Vector3d &lower, Eigen::Vector3d &upper) const;
+  bool isInflatedPointClear(const Eigen::Vector3d &point,
+                            double clearance);
+  bool isInflatedLineClear(const Eigen::Vector3d &start,
+                           const Eigen::Vector3d &end,
+                           double clearance);
   void getInflatedSurfacePointsInBox(const Eigen::Vector3d &lower,
                                      const Eigen::Vector3d &upper,
                                      std::vector<Eigen::Vector3d> &points);
