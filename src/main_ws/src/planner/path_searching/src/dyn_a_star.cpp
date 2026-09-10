@@ -139,7 +139,7 @@ bool AStar::ConvertToIndexAndAdjustStartEndPoints(Vector3d start_pt, Vector3d en
     return true;
 }
 
-ASTAR_RET AStar::AstarSearch(const double step_size, Vector3d start_pt, Vector3d end_pt)
+ASTAR_RET AStar::AstarSearch(const double step_size, Vector3d start_pt, Vector3d end_pt, bool use_six_connected)
 {
     ros::Time time_1 = ros::Time::now();
     ++rounds_;
@@ -205,6 +205,9 @@ ASTAR_RET AStar::AstarSearch(const double step_size, Vector3d start_pt, Vector3d
                 for (int dz = -1; dz <= 1; dz++)
                 {
                     if (dx == 0 && dy == 0 && dz == 0)
+                        continue;
+                    if (use_six_connected &&
+                        std::abs(dx) + std::abs(dy) + std::abs(dz) != 1)
                         continue;
 
                     Vector3i neighborIdx;
