@@ -1,5 +1,7 @@
 #include "path_searching/dyn_a_star.h"
 
+#include <cmath>
+
 using namespace std;
 using namespace Eigen;
 
