@@ -13,6 +13,7 @@
     <arg name="dac_sfc_fallback_to_ego" default="true"/>
     <arg name="max_vel" default="1.5"/>
     <arg name="max_acc" default="3.0"/>
+    <arg name="planning_horizon" default="7.5"/>
 
     <!-- Gazebo, PX4 SITL, vehicle spawn, MAVROS and px4ctrl. -->
     <include file="$(find px4ctrl)/launch/run_mavros_gazebo.launch">
@@ -31,6 +32,7 @@
         <arg name="dac_sfc_fallback_to_ego" value="$(arg dac_sfc_fallback_to_ego)"/>
         <arg name="max_vel" value="$(arg max_vel)"/>
         <arg name="max_acc" value="$(arg max_acc)"/>
+        <arg name="planning_horizon" value="$(arg planning_horizon)"/>
     </include>
     <include file="$(find ego_planner)/launch/rviz.launch"/>
 </launch>
