@@ -46,6 +46,12 @@ struct CompactCorridorOptions
     double overlap_radius =
         0.01;
 
+    // Axis-aligned half extent of each obstacle sample.  Zero preserves the
+    // original point-obstacle behavior; a grid map should pass half its voxel
+    // resolution so candidate generation and coverage operate on full voxels.
+    double obstacle_half_extent =
+        0.0;
+
     bool metric_enabled =
         false;
 
@@ -203,6 +209,18 @@ inline bool buildCompactSegmentPolytope(
         std::max(
             0.0,
             options.overlap_radius);
+
+    const double obstacleHalfExtent =
+        std::max(
+            0.0,
+            options.obstacle_half_extent);
+
+    const auto obstacleSupportRadius =
+        [&](const Eigen::Vector3d &normal)
+        {
+            return obstacleHalfExtent *
+                   normal.cwiseAbs().sum();
+        };
 
     const double maxExtraRadius =
         std::max(
@@ -539,16 +557,38 @@ inline bool buildCompactSegmentPolytope(
     for (const Eigen::Vector3d &point :
          points)
     {
-        const Eigen::Vector4d pointH(
-            point(0),
-            point(1),
-            point(2),
-            1.0);
+        // Retain a voxel whenever its axis-aligned box intersects the
+        // fixed trajectory-relevant domain.  Testing only the center can drop
+        // a voxel whose boundary reaches into the domain.
+        bool intersectsDomain =
+            true;
 
-        if ((fixedH *
-             pointH)
-                .maxCoeff() <=
-            epsilon)
+        for (int faceId = 0;
+             faceId < fixedH.rows();
+             ++faceId)
+        {
+            const Eigen::Vector3d normal =
+                fixedH.block<1, 3>(
+                        faceId,
+                        0)
+                    .transpose();
+
+            const double minimumVoxelValue =
+                normal.dot(point) +
+                fixedH(faceId, 3) -
+                obstacleSupportRadius(normal);
+
+            if (minimumVoxelValue >
+                epsilon)
+            {
+                intersectsDomain =
+                    false;
+
+                break;
+            }
+        }
+
+        if (intersectsDomain)
         {
             localObstacles.push_back(
                 point);
@@ -706,9 +746,13 @@ inline bool buildCompactSegmentPolytope(
                     normal.dot(b)) +
                 overlapRadius;
 
+            // Nearest support of the complete occupied voxel along
+            // the seed-to-obstacle normal.
             const double obstacleSupport =
                 normal.dot(
-                    obstacle);
+                    obstacle) -
+                obstacleSupportRadius(
+                    normal);
 
             const double supportGap =
                 obstacleSupport -
@@ -779,7 +823,9 @@ inline bool buildCompactSegmentPolytope(
                     normal.dot(
                         localObstacles[
                             pointId]) -
-                    threshold;
+                    threshold -
+                    obstacleSupportRadius(
+                        normal);
 
                 ++localDiagnostics.obstacle_face_tests; 
 
@@ -1145,9 +1191,13 @@ inline bool buildCompactSegmentPolytope(
                     normal.dot(b)) +
                 overlapRadius;
 
+            // Nearest support of the complete occupied voxel along
+            // the seed-to-obstacle normal.
             const double obstacleSupport =
                 normal.dot(
-                    witness);
+                    witness) -
+                obstacleSupportRadius(
+                    normal);
 
             const double supportGap =
                 obstacleSupport -
@@ -1222,7 +1272,9 @@ inline bool buildCompactSegmentPolytope(
                     normal.dot(
                         localObstacles[
                             obstacleId]) -
-                    threshold;
+                    threshold -
+                    obstacleSupportRadius(
+                        normal);
 
                 if (violation >
                     epsilon)
@@ -1334,7 +1386,9 @@ inline bool buildCompactSegmentPolytope(
                     normal.dot(
                         localObstacles[
                             obstacleId]) -
-                    threshold;
+                    threshold -
+                    obstacleSupportRadius(
+                        normal);
                         
                 if (violation >
                     epsilon)
@@ -1644,18 +1698,34 @@ inline bool buildCompactSegmentPolytope(
             localObstacles[
                 obstacleId];
 
-        const Eigen::Vector4d pointH(
-            point(0),
-            point(1),
-            point(2),
-            1.0);
+        double maxVoxelSeparation =
+            -std::numeric_limits<double>::
+                infinity();
 
-        const double maxViolation =
-            (hPoly *
-             pointH)
-                .maxCoeff();
+        for (int faceId = 0;
+             faceId < hPoly.rows();
+             ++faceId)
+        {
+            const Eigen::Vector3d normal =
+                hPoly.block<1, 3>(
+                        faceId,
+                        0)
+                    .transpose();
 
-        if (!(maxViolation >
+            // The complete voxel is outside this face only when its nearest
+            // support point is strictly outside the halfspace.
+            const double minimumVoxelValue =
+                normal.dot(point) +
+                hPoly(faceId, 3) -
+                obstacleSupportRadius(normal);
+
+            maxVoxelSeparation =
+                std::max(
+                    maxVoxelSeparation,
+                    minimumVoxelValue);
+        }
+
+        if (!(maxVoxelSeparation >
               epsilon))
         {
             if (diagnostics != nullptr)
