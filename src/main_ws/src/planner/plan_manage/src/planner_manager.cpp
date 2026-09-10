@@ -66,6 +66,10 @@ namespace ego_planner
     nh.param("manager/dac_sfc/max_extra_radius", dac_engine_options_.max_extra_radius, 1.0);
     nh.param("manager/dac_sfc/min_extra_ratio", dac_engine_options_.min_extra_ratio, 0.25);
     nh.param("manager/dac_sfc/overlap_radius", dac_engine_options_.overlap_radius, 0.04);
+    // Route search, shortcutting and SFC construction must protect the same
+    // continuous tube. Otherwise a route accepted by A route layer can be
+    // rejected later as active_voxel_support_gap.
+    dac_route_options_.clearance_radius = dac_engine_options_.overlap_radius;
     nh.param("manager/dac_sfc/map_boundary_margin", dac_engine_options_.map_boundary_margin, 0.02);
     nh.param("manager/dac_sfc/max_final_corridor_violation", dac_engine_options_.max_final_corridor_violation, 0.02);
 
