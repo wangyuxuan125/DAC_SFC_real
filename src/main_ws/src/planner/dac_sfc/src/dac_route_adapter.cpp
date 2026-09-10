@@ -77,9 +77,21 @@ bool DacRouteAdapter::build(const Eigen::Vector3d &start,
     diagnostics.failure_stage = "route_input";
     return false;
   }
-  if (!map_->isInInflatedMap(start) || !map_->isInInflatedMap(goal))
+  Eigen::Vector3d map_lower;
+  Eigen::Vector3d map_upper;
+  if (!map_->getInflatedMapBounds(map_lower, map_upper))
   {
     diagnostics.failure_stage = "route_map_not_ready";
+    return false;
+  }
+  if (!map_->isInInflatedMap(start))
+  {
+    diagnostics.failure_stage = "route_start_outside_map";
+    return false;
+  }
+  if (!map_->isInInflatedMap(goal))
+  {
+    diagnostics.failure_stage = "route_goal_outside_map";
     return false;
   }
 
