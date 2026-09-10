@@ -6,7 +6,7 @@
     <arg name="verbose" default="false"/>
     <arg name="paused" default="false"/>
     <arg name="vehicle" default="iris"/>
-    <arg name="sdf" default="iris_D435i"/>
+    <arg name="sdf" default="iris_realsense_camera"/>
     <arg name="world" default="$(find mavlink_sitl_gazebo)/worlds/ego.world"/>
 
     <!-- Gazebo, PX4 SITL, vehicle spawn, MAVROS and px4ctrl. -->

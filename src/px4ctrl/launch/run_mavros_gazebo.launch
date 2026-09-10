@@ -2,7 +2,7 @@
 
     <arg name="est" default="ekf2"/>
     <arg name="vehicle" default="iris"/>
-    <arg name="sdf" default="iris_D435i"/>
+    <arg name="sdf" default="iris_realsense_camera"/>
     <arg name="world" default="$(find mavlink_sitl_gazebo)/worlds/ego.world"/>
     <!-- gazebo configs -->
     <arg name="gui" default="true"/>
@@ -26,23 +26,26 @@
 			<rosparam command="load" file="$(find px4ctrl)/config/ctrl_param_fpv.yaml" />
 		</node>
 
-		<!-- MAVROS and vehicle configs -->
+        <!-- MAVROS and vehicle configs -->
         <arg name="ID" value="0"/>
-        <arg name="fcu_url" default="udp://:14540@localhost:14580"/>
-        <arg name="gcs_url" default="udp://:14556@192.168.1.10:14550" />
+        <arg name="ID_in_group" value="0"/>
+        <arg name="fcu_url" default="udp://:24540@localhost:34580"/>
+        <arg name="gcs_url" default=""/>
         <!-- PX4 SITL and vehicle spawn -->
-        <include file="$(find px4)/launch/single_vehicle_spawn_ssdf.launch">
-            <arg name="x" value="-6"/>
-            <arg name="y" value="0"/>
+        <include file="$(find px4)/launch/single_vehicle_spawn_xtd.launch">
+            <arg name="x" value="4"/>
+            <arg name="y" value="7.5"/>
             <arg name="z" value="0"/>
             <arg name="R" value="0"/>
             <arg name="P" value="0"/>
-            <arg name="Y" value="0"/>
+            <arg name="Y" value="3.14"/>
             <arg name="sdf" value="$(arg sdf)"/>
             <arg name="vehicle" value="$(arg vehicle)"/>
-            <arg name="mavlink_udp_port" value="14560"/>
+            <arg name="mavlink_udp_port" value="18570"/>
             <arg name="mavlink_tcp_port" value="4560"/>
+            <arg name="udp_gimbal_port" value="13030"/>
             <arg name="ID" value="$(arg ID)"/>
+            <arg name="ID_in_group" value="$(arg ID_in_group)"/>
         </include>
         <!-- MAVROS -->
         <include file="$(find mavros)/launch/px4.launch">

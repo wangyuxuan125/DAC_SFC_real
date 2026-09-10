@@ -48,6 +48,10 @@ This entry point launches Gazebo, PX4 SITL, the vehicle model, MAVROS,
 use the external `px4/single_vehicle.launch`, because that file is not part of
 this repository and may be generated or locally modified.
 
+The launcher follows the repository's XTDrone configuration and uses
+`single_vehicle_spawn_xtd.launch`, the `iris_realsense_camera` model and the
+same vehicle-0 MAVLink ports as `px4/multi_vehicle.launch`.
+
 During a run, check:
 
 ```bash
