@@ -35,6 +35,7 @@
     <arg name="drone_id"/>
     <arg name="dac_sfc_shadow_only" default="true"/>
     <arg name="dac_sfc_fallback_to_ego" default="true"/>
+    <arg name="dac_sfc_log_directory" default="/tmp/dac_sfc_deployment"/>
     <!-- main node -->
     <!-- <node pkg="ego_planner" name="ego_planner_node" type="ego_planner_node" output="screen" launch-prefix="valgrind"> -->
     <node pkg="ego_planner" name="drone_$(arg drone_id)_ego_planner_node" type="ego_planner_node" output="screen">
@@ -165,7 +166,7 @@
         <param name="manager/dac_sfc/visualization_enabled" value="true" type="bool"/>
         <param name="manager/dac_sfc/visualization_frame" value="world" type="string"/>
         <param name="manager/dac_sfc/log_enabled" value="true" type="bool"/>
-        <param name="manager/dac_sfc/log_directory" value="/tmp/dac_sfc_deployment" type="string"/>
+        <param name="manager/dac_sfc/log_directory" value="$(arg dac_sfc_log_directory)" type="string"/>
         <param name="manager/dac_sfc/max_segment_length" value="1.0" type="double"/>
         <param name="manager/dac_sfc/max_extra_radius" value="1.0" type="double"/>
         <param name="manager/dac_sfc/overlap_radius" value="0.04" type="double"/>
