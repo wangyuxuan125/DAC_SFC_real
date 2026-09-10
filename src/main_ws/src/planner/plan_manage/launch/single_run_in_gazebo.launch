@@ -1,6 +1,10 @@
 <launch>
     <!-- size of map, change the size inflate x, y, z according to your application -->
     <arg name="drone_id" default="0"/>
+    <!-- Active execution is an explicit opt-in; shadow remains the default. -->
+    <arg name="dac_sfc_shadow_only" default="true"/>
+    <arg name="max_vel" default="1.5"/>
+    <arg name="max_acc" default="3.0"/>
     <arg name="map_size_x" value="100.0"/>
     <arg name="map_size_y" value="100.0"/>
     <arg name="map_size_z" value=" 3.0"/>
@@ -34,6 +38,7 @@
     <!-- main algorithm params -->
     <include file="$(find ego_planner)/launch/include/advanced_param_gazebo.xml">
         <arg name="drone_id" value="$(arg drone_id)"/>
+        <arg name="dac_sfc_shadow_only" value="$(arg dac_sfc_shadow_only)"/>
         <arg name="map_size_x_" value="$(arg map_size_x)"/>
         <arg name="map_size_y_" value="$(arg map_size_y)"/>
         <arg name="map_size_z_" value="$(arg map_size_z)"/>
@@ -50,8 +55,8 @@
         <arg name="fx" value="554.254691191187"/>
         <arg name="fy" value="554.254691191187"/>
         <!-- maximum velocity, acceleration and jerk the drone will reach -->
-        <arg name="max_vel" value="1.5" />
-        <arg name="max_acc" value="3.0" />
+        <arg name="max_vel" value="$(arg max_vel)" />
+        <arg name="max_acc" value="$(arg max_acc)" />
         <arg name="max_jer" value="20.0" />
         <!--always set to 1.5 times grater than sensing horizen-->
         <arg name="planning_horizon" value="7.5" />

@@ -33,6 +33,7 @@
     <arg name="flight_type"/>
     <arg name="use_multitopology_trajs"/>
     <arg name="drone_id"/>
+    <arg name="dac_sfc_shadow_only" default="true"/>
     <!-- main node -->
     <!-- <node pkg="ego_planner" name="ego_planner_node" type="ego_planner_node" output="screen" launch-prefix="valgrind"> -->
     <node pkg="ego_planner" name="drone_$(arg drone_id)_ego_planner_node" type="ego_planner_node" output="screen">
@@ -157,7 +158,7 @@
              A* -> CSGN -> Active-Witness -> GCOPTER chain but keeps EGO in
              control until the generated trajectory has been inspected. -->
         <param name="manager/dac_sfc/enabled" value="true" type="bool"/>
-        <param name="manager/dac_sfc/shadow_only" value="true" type="bool"/>
+        <param name="manager/dac_sfc/shadow_only" value="$(arg dac_sfc_shadow_only)" type="bool"/>
         <param name="manager/dac_sfc/fallback_to_ego" value="true" type="bool"/>
         <param name="manager/dac_sfc/data_source" value="simulation" type="string"/>
         <param name="manager/dac_sfc/visualization_enabled" value="true" type="bool"/>

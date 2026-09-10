@@ -66,13 +66,23 @@ The ROS console emits one compact line per attempt:
 ```
 
 After repeated shadow runs are successful and the sparse route is correct in
-RViz, set this single parameter to activate DAC-SFC output:
+RViz, opt into DAC-SFC output from the launch command. For the first active
+simulation, use conservative dynamic limits:
 
-```xml
-<param name="manager/dac_sfc/shadow_only" value="false" type="bool"/>
+```bash
+roslaunch ego_planner single_run_in_gazebo.launch \
+  dac_sfc_shadow_only:=false max_vel:=0.5 max_acc:=1.0
 ```
 
-Keep `fallback_to_ego=true` during initial simulation and onboard tests.
+The complete-stack launcher forwards the same arguments:
+
+```bash
+roslaunch ego_planner dac_sfc_single_sim.launch \
+  dac_sfc_shadow_only:=false max_vel:=0.5 max_acc:=1.0
+```
+
+Omitting `dac_sfc_shadow_only:=false` keeps the safe shadow default. Keep
+`fallback_to_ego=true` during initial simulation and onboard tests.
 
 ## Simulation in place of unavailable onboard topics
 
