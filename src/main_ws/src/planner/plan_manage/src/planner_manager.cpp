@@ -494,27 +494,70 @@ namespace ego_planner
   }
 
   bool EGOPlannerManager::trajectoryIsCollisionFree(
-      const poly_traj::Trajectory &trajectory) const
+      const poly_traj::Trajectory &trajectory,
+      std::string &failure_stage) const
   {
-    if (trajectory.getPieceNum() <= 0 || !grid_map_)
+    failure_stage.clear();
+
+    if (!grid_map_)
+    {
+      failure_stage = "trajectory_map_unavailable";
       return false;
+    }
+    if (trajectory.getPieceNum() <= 0)
+    {
+      failure_stage = "trajectory_empty";
+      return false;
+    }
 
     const double duration = trajectory.getTotalDuration();
     if (!std::isfinite(duration) || duration <= 0.0)
+    {
+      failure_stage = "trajectory_duration_invalid";
       return false;
+    }
 
     const double time_step = std::max(
         0.002, grid_map_->getResolution() /
                    (2.0 * std::max(dac_engine_options_.max_velocity, 0.1)));
-    const int samples = std::max(1, static_cast<int>(std::ceil(duration / time_step)));
+    const int samples = std::max(
+        1, static_cast<int>(std::ceil(duration / time_step)));
     for (int i = 0; i <= samples; ++i)
     {
       const double time = duration * static_cast<double>(i) /
                           static_cast<double>(samples);
       const Eigen::Vector3d point = trajectory.getPos(time);
-      if (!point.allFinite() || !grid_map_->isInInflatedMap(point) ||
-          grid_map_->getInflateOccupancy(point) != 0)
+
+      if (!point.allFinite())
+      {
+        failure_stage = "trajectory_sample_nonfinite";
+        ROS_WARN_STREAM("[DAC-SFC] Safety check failed: " << failure_stage
+                        << " sample=" << i << "/" << samples
+                        << " t=" << time);
         return false;
+      }
+
+      if (!grid_map_->isInInflatedMap(point))
+      {
+        failure_stage = "trajectory_outside_inflated_map";
+        ROS_WARN_STREAM("[DAC-SFC] Safety check failed: " << failure_stage
+                        << " sample=" << i << "/" << samples
+                        << " t=" << time
+                        << " point=" << point.transpose());
+        return false;
+      }
+
+      const int occupancy = grid_map_->getInflateOccupancy(point);
+      if (occupancy != 0)
+      {
+        failure_stage = "trajectory_occupied";
+        ROS_WARN_STREAM("[DAC-SFC] Safety check failed: " << failure_stage
+                        << " sample=" << i << "/" << samples
+                        << " t=" << time
+                        << " point=" << point.transpose()
+                        << " occupancy=" << occupancy);
+        return false;
+      }
     }
     return true;
   }
@@ -666,6 +709,7 @@ namespace ego_planner
     poly_traj::Trajectory candidate;
     bool sampled_collision_free = false;
     bool dynamic_limits_satisfied = false;
+    std::string trajectory_safety_failure;
     if (engine_success)
     {
       std::vector<double> durations(engine_result.durations.size());
@@ -676,7 +720,8 @@ namespace ego_planner
       for (const auto &coefficient : engine_result.coefficients)
         coefficients.push_back(coefficient);
       candidate = poly_traj::Trajectory(durations, coefficients);
-      sampled_collision_free = trajectoryIsCollisionFree(candidate);
+      sampled_collision_free =
+          trajectoryIsCollisionFree(candidate, trajectory_safety_failure);
       const double tolerance = 1.0 + std::max(0.0, pp_.feasibility_tolerance_);
       dynamic_limits_satisfied =
           (pp_.max_vel_ <= 0.0 ||
@@ -691,7 +736,9 @@ namespace ego_planner
     if (!engine_success)
       record.failure_stage = engine_result.diagnostics.failure_stage;
     else if (!sampled_collision_free)
-      record.failure_stage = "inflated_map_collision_check";
+      record.failure_stage = trajectory_safety_failure.empty()
+                                 ? "inflated_map_collision_check"
+                                 : trajectory_safety_failure;
     else if (!dynamic_limits_satisfied)
       record.failure_stage = "dynamic_limits";
 
