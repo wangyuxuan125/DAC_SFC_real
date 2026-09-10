@@ -1,5 +1,116 @@
 #include "plan_env/grid_map.h"
 
+#include <algorithm>
+#include <cmath>
+#include <limits>
+#include <vector>
+
+namespace
+{
+
+double squaredPointAabbDistance(const Eigen::Vector3d &point,
+                                const Eigen::Vector3d &lower,
+                                const Eigen::Vector3d &upper)
+{
+  double squared_distance = 0.0;
+  for (int axis = 0; axis < 3; ++axis)
+  {
+    double delta = 0.0;
+    if (point(axis) < lower(axis))
+      delta = lower(axis) - point(axis);
+    else if (point(axis) > upper(axis))
+      delta = point(axis) - upper(axis);
+    squared_distance += delta * delta;
+  }
+  return squared_distance;
+}
+
+double squaredSegmentAabbDistance(const Eigen::Vector3d &start,
+                                  const Eigen::Vector3d &end,
+                                  const Eigen::Vector3d &lower,
+                                  const Eigen::Vector3d &upper)
+{
+  const Eigen::Vector3d direction = end - start;
+  std::vector<double> breakpoints{0.0, 1.0};
+  breakpoints.reserve(8);
+
+  for (int axis = 0; axis < 3; ++axis)
+  {
+    if (std::abs(direction(axis)) <= 1.0e-12)
+      continue;
+    const double lower_time =
+        (lower(axis) - start(axis)) / direction(axis);
+    const double upper_time =
+        (upper(axis) - start(axis)) / direction(axis);
+    if (lower_time > 0.0 && lower_time < 1.0)
+      breakpoints.push_back(lower_time);
+    if (upper_time > 0.0 && upper_time < 1.0)
+      breakpoints.push_back(upper_time);
+  }
+
+  std::sort(breakpoints.begin(), breakpoints.end());
+  breakpoints.erase(
+      std::unique(breakpoints.begin(), breakpoints.end(),
+                  [](const double lhs, const double rhs)
+                  {
+                    return std::abs(lhs - rhs) <= 1.0e-12;
+                  }),
+      breakpoints.end());
+
+  double minimum_squared_distance =
+      std::numeric_limits<double>::infinity();
+  const auto evaluate =
+      [&](const double time)
+      {
+        minimum_squared_distance = std::min(
+            minimum_squared_distance,
+            squaredPointAabbDistance(start + time * direction, lower, upper));
+      };
+
+  for (std::size_t interval = 0;
+       interval + 1 < breakpoints.size();
+       ++interval)
+  {
+    const double begin = breakpoints[interval];
+    const double finish = breakpoints[interval + 1];
+    const double middle = 0.5 * (begin + finish);
+    const Eigen::Vector3d middle_point = start + middle * direction;
+
+    double quadratic = 0.0;
+    double linear = 0.0;
+    for (int axis = 0; axis < 3; ++axis)
+    {
+      double slope = 0.0;
+      double intercept = 0.0;
+      if (middle_point(axis) < lower(axis))
+      {
+        slope = -direction(axis);
+        intercept = lower(axis) - start(axis);
+      }
+      else if (middle_point(axis) > upper(axis))
+      {
+        slope = direction(axis);
+        intercept = start(axis) - upper(axis);
+      }
+      quadratic += slope * slope;
+      linear += slope * intercept;
+    }
+
+    evaluate(begin);
+    evaluate(finish);
+    if (quadratic > 1.0e-18)
+    {
+      const double stationary =
+          std::max(begin, std::min(finish, -linear / quadratic));
+      evaluate(stationary);
+    }
+  }
+
+  return minimum_squared_distance;
+}
+
+} // namespace
+
 void GridMap::initMap(ros::NodeHandle &nh)
 {
   node_ = nh;
@@ -900,6 +1011,62 @@ void GridMap::publishMapInflate()
 
   pcl::toROSMsg(cloud, cloud_msg);
   map_inf_pub_.publish(cloud_msg);
+}
+
+bool GridMap::isInflatedPointClear(const Eigen::Vector3d &point,
+                                    const double clearance)
+{
+  return isInflatedLineClear(point, point, clearance);
+}
+
+bool GridMap::isInflatedLineClear(const Eigen::Vector3d &start,
+                                  const Eigen::Vector3d &end,
+                                  const double requested_clearance)
+{
+  if (!start.allFinite() || !end.allFinite() ||
+      !std::isfinite(requested_clearance) || requested_clearance < 0.0)
+    return false;
+
+  Eigen::Vector3d map_lower;
+  Eigen::Vector3d map_upper;
+  if (!getInflatedMapBounds(map_lower, map_upper))
+    return false;
+
+  const double clearance = std::max(0.0, requested_clearance);
+  const Eigen::Vector3d segment_lower = start.cwiseMin(end);
+  const Eigen::Vector3d segment_upper = start.cwiseMax(end);
+  if ((segment_lower.array() < (map_lower.array() + clearance)).any() ||
+      (segment_upper.array() > (map_upper.array() - clearance)).any())
+    return false;
+
+  Eigen::Vector3i lower_id =
+      pos2GlobalIdx(segment_lower.array() - clearance);
+  Eigen::Vector3i upper_id =
+      pos2GlobalIdx(segment_upper.array() + clearance);
+  lower_id = lower_id.cwiseMax(md_.ringbuffer_inf_lowbound3i_);
+  upper_id = upper_id.cwiseMin(md_.ringbuffer_inf_upbound3i_);
+
+  const double clearance_squared = clearance * clearance;
+  for (int x = lower_id(0); x <= upper_id(0); ++x)
+    for (int y = lower_id(1); y <= upper_id(1); ++y)
+      for (int z = lower_id(2); z <= upper_id(2); ++z)
+      {
+        const Eigen::Vector3i id(x, y, z);
+        if (!isInInfBuf(id) ||
+            md_.occupancy_buffer_inflate_[globalIdx2InfBufIdx(id)] == 0)
+          continue;
+
+        const Eigen::Vector3d voxel_lower =
+            id.cast<double>() * mp_.resolution_;
+        const Eigen::Vector3d voxel_upper =
+            voxel_lower.array() + mp_.resolution_;
+        if (squaredSegmentAabbDistance(
+                start, end, voxel_lower, voxel_upper) <=
+            clearance_squared + 1.0e-12)
+          return false;
+      }
+
+  return true;
 }
 
 bool GridMap::getInflatedMapBounds(Eigen::Vector3d &lower,
