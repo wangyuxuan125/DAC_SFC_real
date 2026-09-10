@@ -22,6 +22,8 @@ struct RouteDiagnostics
 {
   bool success = false;
   bool direct_path = false;
+  bool goal_adjusted = false;
+  double goal_adjustment_distance = 0.0;
   std::string failure_stage;
   int raw_point_count = 0;
   int sparse_point_count = 0;
@@ -44,7 +46,8 @@ public:
              const RouteOptions &options,
              std::vector<Eigen::Vector3d> &raw_path,
              std::vector<Eigen::Vector3d> &sparse_route,
-             RouteDiagnostics &diagnostics);
+             RouteDiagnostics &diagnostics,
+             bool allow_occupied_goal_adjustment = true);
 
 private:
   bool lineIsFree(const Eigen::Vector3d &start,
