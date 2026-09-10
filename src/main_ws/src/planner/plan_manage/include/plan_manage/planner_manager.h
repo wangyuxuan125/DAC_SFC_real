@@ -89,7 +89,9 @@ namespace ego_planner
         const Eigen::Vector3d &start_acc, const Eigen::Vector3d &local_target_pt,
         const Eigen::Vector3d &local_target_vel, const bool touch_goal,
         bool &trajectory_activated);
-    bool trajectoryIsCollisionFree(const poly_traj::Trajectory &trajectory) const;
+    bool trajectoryIsCollisionFree(
+        const poly_traj::Trajectory &trajectory,
+        std::string &failure_stage) const;
     void publishDacSfcCorridors(
         const std::vector<Eigen::MatrixX4d> &corridors) const;
 
