@@ -39,7 +39,9 @@ bool optionsAreValid(const EngineOptions &options)
          options.csgn_relative_damping > 0.0 && options.csgn_proximity_power >= 0.0 &&
          options.max_corridor_anisotropy >= 1.0 && options.max_extra_radius > 0.0 &&
          options.min_extra_ratio >= 0.0 && options.min_extra_ratio <= 1.0 &&
-         options.overlap_radius >= 0.0 && options.map_boundary_margin >= 0.0;
+         options.overlap_radius >= 0.0 && options.map_boundary_margin >= 0.0 &&
+         std::isfinite(options.obstacle_voxel_size) &&
+         options.obstacle_voxel_size >= 0.0;
 }
 
 } // namespace
@@ -212,6 +214,40 @@ bool DacSfcEngine::plan(const std::vector<Eigen::Vector3d> &route,
       result.diagnostics.corridor_ms = millisecondsSince(corridor_started);
       result.diagnostics.failure_stage = "active_witness_corridor";
       return false;
+    }
+
+    // buildCompactSegmentPolytope treats obstacle samples as mathematical
+    // points, while the grid map regards the complete resolution-sized voxel
+    // as occupied.  Erode each halfspace by the support function of an
+    // axis-aligned half voxel: h * ||a||_1 for a^T x + b <= 0.  This is
+    // equivalent to building against all eight voxel corners, without the
+    // eightfold obstacle-cloud and Active-Witness cost.
+    if (options.obstacle_voxel_size > 0.0)
+    {
+      const double half_voxel = 0.5 * options.obstacle_voxel_size;
+      for (int face_id = 0; face_id < corridor.rows(); ++face_id)
+      {
+        const Eigen::Vector3d normal =
+            corridor.block<1, 3>(face_id, 0).transpose();
+        corridor(face_id, 3) += half_voxel * normal.cwiseAbs().sum();
+      }
+
+      // A convex corridor contains the complete guide segment iff it contains
+      // both endpoints.  Report a geometric failure when voxel erosion makes
+      // the discrete A* segment too tight instead of handing an invalid SFC to
+      // GCOPTER.
+      const double containment_tolerance = 1.0e-8;
+      const double start_violation =
+          (corridor.leftCols<3>() * route[i] + corridor.col(3)).maxCoeff();
+      const double end_violation =
+          (corridor.leftCols<3>() * route[i + 1] + corridor.col(3)).maxCoeff();
+      if (start_violation > containment_tolerance ||
+          end_violation > containment_tolerance)
+      {
+        result.diagnostics.corridor_ms = millisecondsSince(corridor_started);
+        result.diagnostics.failure_stage = "voxel_clearance_corridor";
+        return false;
+      }
     }
 
     if (!result.corridors.empty() &&
