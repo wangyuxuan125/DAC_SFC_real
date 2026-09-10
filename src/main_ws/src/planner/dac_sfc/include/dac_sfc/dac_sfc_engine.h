@@ -51,6 +51,10 @@ struct EngineOptions
   double min_extra_ratio = 0.25;
   double overlap_radius = 0.04;
   double map_boundary_margin = 0.02;
+  // The obstacle cloud contains occupied voxel centers.  Erode every
+  // generated halfspace by the voxel support radius so the resulting SFC
+  // excludes the complete occupied voxel rather than only its center.
+  double obstacle_voxel_size = 0.0;
   double max_final_corridor_violation = 0.02;
 };
 
