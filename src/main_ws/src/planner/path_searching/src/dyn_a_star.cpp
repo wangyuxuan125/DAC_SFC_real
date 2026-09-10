@@ -139,13 +139,16 @@ bool AStar::ConvertToIndexAndAdjustStartEndPoints(Vector3d start_pt, Vector3d en
     return true;
 }
 
-ASTAR_RET AStar::AstarSearch(const double step_size, Vector3d start_pt, Vector3d end_pt, bool use_six_connected)
+ASTAR_RET AStar::AstarSearch(const double step_size, Vector3d start_pt,
+                                 Vector3d end_pt, bool use_six_connected,
+                                 double clearance)
 {
     ros::Time time_1 = ros::Time::now();
     ++rounds_;
 
     step_size_ = step_size;
     inv_step_size_ = 1 / step_size;
+    clearance_ = std::isfinite(clearance) ? std::max(0.0, clearance) : 0.0;
     center_ = (start_pt + end_pt) / 2;
 
     Vector3i start_idx, end_idx;
@@ -232,7 +235,17 @@ ASTAR_RET AStar::AstarSearch(const double step_size, Vector3d start_pt, Vector3d
 
                     neighborPtr->rounds = rounds_;
 
-                    if (checkOccupancy(Index2Coord(neighborPtr->index)))
+                    const Vector3d current_coord =
+                        Index2Coord(current->index);
+                    const Vector3d neighbor_coord =
+                        Index2Coord(neighborPtr->index);
+                    if (clearance_ > 0.0)
+                    {
+                        if (!grid_map_->isInflatedLineClear(
+                                current_coord, neighbor_coord, clearance_))
+                            continue;
+                    }
+                    else if (checkOccupancy(neighbor_coord))
                     {
                         continue;
                     }
