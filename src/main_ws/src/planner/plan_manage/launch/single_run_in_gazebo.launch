@@ -4,6 +4,9 @@
     <arg name="map_size_x" value="100.0"/>
     <arg name="map_size_y" value="100.0"/>
     <arg name="map_size_z" value=" 3.0"/>
+    <!-- MAVROS odometry uses map while planner visualization uses world. -->
+    <node pkg="tf2_ros" type="static_transform_publisher"
+          name="world_to_map_static_tf" args="0 0 0 0 0 0 world map"/>
     <!--飞行方式选择 1rviz 指点 2航点-->
     <arg name="flight_type" default="1"/>
     <!--航点数量-->
