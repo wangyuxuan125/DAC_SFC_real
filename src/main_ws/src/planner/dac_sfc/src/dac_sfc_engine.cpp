@@ -15,6 +15,7 @@
 #include <chrono>
 #include <cmath>
 #include <limits>
+#include <iostream>
 
 namespace dac_sfc_deployment
 {
@@ -214,7 +215,17 @@ bool DacSfcEngine::plan(const std::vector<Eigen::Vector3d> &route,
             corridor, corridor_options, &diagnostics))
     {
       result.diagnostics.corridor_ms = millisecondsSince(corridor_started);
-      result.diagnostics.failure_stage = "active_witness_corridor";
+      result.diagnostics.failure_stage =
+          diagnostics.failure_reason.empty()
+              ? "active_witness_corridor"
+              : diagnostics.failure_reason;
+      std::cerr << "[DAC-SFC] Active-Witness corridor rejected segment=" << i
+                << " reason=" << result.diagnostics.failure_stage
+                << " margin_m=" << diagnostics.failure_margin
+                << " obstacle=" << diagnostics.failure_obstacle
+                << " start=" << route[i].transpose()
+                << " end=" << route[i + 1].transpose()
+                << std::endl;
       return false;
     }
 
