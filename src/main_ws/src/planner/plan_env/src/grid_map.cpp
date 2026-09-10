@@ -1040,9 +1040,9 @@ bool GridMap::isInflatedLineClear(const Eigen::Vector3d &start,
     return false;
 
   Eigen::Vector3i lower_id =
-      pos2GlobalIdx(segment_lower.array() - clearance);
+      pos2GlobalIdx((segment_lower.array() - clearance).matrix());
   Eigen::Vector3i upper_id =
-      pos2GlobalIdx(segment_upper.array() + clearance);
+      pos2GlobalIdx((segment_upper.array() + clearance).matrix());
   lower_id = lower_id.cwiseMax(md_.ringbuffer_inf_lowbound3i_);
   upper_id = upper_id.cwiseMin(md_.ringbuffer_inf_upbound3i_);
 
