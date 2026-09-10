@@ -33,10 +33,12 @@ class DeploymentLogger
 public:
   void configure(bool enabled, const std::string &directory);
   bool append(const DeploymentRecord &record);
+  const std::string &path() const { return path_; }
 
 private:
   bool enabled_ = false;
   std::string directory_;
+  std::string path_;
   std::mutex mutex_;
 };
 
