@@ -15,7 +15,6 @@
 #include <chrono>
 #include <cmath>
 #include <limits>
-#include <iostream>
 
 namespace dac_sfc_deployment
 {
@@ -202,6 +201,8 @@ bool DacSfcEngine::plan(const std::vector<Eigen::Vector3d> &route,
     corridor_options.max_extra_radius = options.max_extra_radius;
     corridor_options.min_extra_ratio = options.min_extra_ratio;
     corridor_options.overlap_radius = options.overlap_radius;
+    corridor_options.obstacle_half_extent =
+        0.5 * options.obstacle_voxel_size;
     corridor_options.metric_enabled = true;
     corridor_options.deformation_utility = metrics[i].corridorUtility;
     corridor_options.epsilon = 1.0e-6;
@@ -215,65 +216,6 @@ bool DacSfcEngine::plan(const std::vector<Eigen::Vector3d> &route,
       result.diagnostics.corridor_ms = millisecondsSince(corridor_started);
       result.diagnostics.failure_stage = "active_witness_corridor";
       return false;
-    }
-
-    // buildCompactSegmentPolytope treats obstacle samples as mathematical
-    // points, while the grid map regards the complete resolution-sized voxel
-    // as occupied.  Erode each halfspace by the support function of an
-    // axis-aligned half voxel: h * ||a||_1 for a^T x + b <= 0.  This is
-    // equivalent to building against all eight voxel corners, without the
-    // eightfold obstacle-cloud and Active-Witness cost.
-    if (options.obstacle_voxel_size > 0.0)
-    {
-      const double half_voxel = 0.5 * options.obstacle_voxel_size;
-      for (int face_id = 0; face_id < corridor.rows(); ++face_id)
-      {
-        const Eigen::Vector3d normal =
-            corridor.block<1, 3>(face_id, 0).transpose();
-        corridor(face_id, 3) += half_voxel * normal.cwiseAbs().sum();
-      }
-
-      // A convex corridor contains the complete guide segment iff it contains
-      // both endpoints.  Report a geometric failure when voxel erosion makes
-      // the discrete A* segment too tight instead of handing an invalid SFC to
-      // GCOPTER.
-      const double containment_tolerance = 1.0e-8;
-      const Eigen::VectorXd start_face_values =
-          corridor.leftCols<3>() * route[i] + corridor.col(3);
-      const Eigen::VectorXd end_face_values =
-          corridor.leftCols<3>() * route[i + 1] + corridor.col(3);
-      Eigen::Index start_face = 0;
-      Eigen::Index end_face = 0;
-      const double start_violation = start_face_values.maxCoeff(&start_face);
-      const double end_violation = end_face_values.maxCoeff(&end_face);
-      if (start_violation > containment_tolerance ||
-          end_violation > containment_tolerance)
-      {
-        const bool start_is_worst = start_violation >= end_violation;
-        const Eigen::Index worst_face = start_is_worst ? start_face : end_face;
-        const double worst_violation =
-            start_is_worst ? start_violation : end_violation;
-        const Eigen::Vector3d worst_normal =
-            corridor.block<1, 3>(worst_face, 0).transpose();
-        const double voxel_shift =
-            half_voxel * worst_normal.cwiseAbs().sum();
-        std::cerr << "[DAC-SFC] Voxel clearance rejected segment=" << i
-                  << " face=" << worst_face
-                  << " domain_faces=" << diagnostics.domain_face_count
-                  << " post_violation_m=" << worst_violation /
-                         std::max(worst_normal.norm(), 1.0e-12)
-                  << " pre_violation_m=" <<
-                         (worst_violation - voxel_shift) /
-                         std::max(worst_normal.norm(), 1.0e-12)
-                  << " voxel_shift_m=" << voxel_shift /
-                         std::max(worst_normal.norm(), 1.0e-12)
-                  << " start=" << route[i].transpose()
-                  << " end=" << route[i + 1].transpose()
-                  << std::endl;
-        result.diagnostics.corridor_ms = millisecondsSince(corridor_started);
-        result.diagnostics.failure_stage = "voxel_clearance_corridor";
-        return false;
-      }
     }
 
     if (!result.corridors.empty() &&
