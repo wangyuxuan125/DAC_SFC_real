@@ -634,7 +634,7 @@ namespace ego_planner
     std::vector<Eigen::Vector3d> route;
     if (!dac_route_adapter_ ||
         !dac_route_adapter_->build(start_pt, local_target_pt, dac_route_options_,
-                                   raw_path, route, record.route))
+                                   raw_path, route, record.route, !touch_goal))
     {
       record.failure_stage = record.route.failure_stage.empty()
                                  ? "route"
@@ -693,7 +693,7 @@ namespace ego_planner
     initial_pva.col(1) = start_vel;
     initial_pva.col(2) = start_acc;
     Eigen::Matrix3d terminal_pva = Eigen::Matrix3d::Zero();
-    terminal_pva.col(0) = local_target_pt;
+    terminal_pva.col(0) = route.back();
     terminal_pva.col(1) = local_target_vel;
 
     dac_sfc_deployment::EngineResult engine_result;
@@ -744,7 +744,9 @@ namespace ego_planner
 
     if (record.pipeline_success && !dac_sfc_shadow_only_)
     {
-      trajectory_activated = setLocalTraj(candidate, touch_goal);
+      const bool effective_touch_goal =
+          touch_goal && !record.route.goal_adjusted;
+      trajectory_activated = setLocalTraj(candidate, effective_touch_goal);
       if (!trajectory_activated)
       {
         record.failure_stage = "trajectory_activation";
