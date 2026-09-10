@@ -8,6 +8,7 @@
 #include <cmath>
 #include <cstdint>
 #include <limits>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -117,6 +118,12 @@ struct CompactCorridorDiagnostics
 
     bool safety_verified =
         false;
+
+    std::string failure_reason;
+    double failure_margin =
+        0.0;
+    int failure_obstacle =
+        -1;
 
     Eigen::Vector3d utility_eigenvalues =
         Eigen::Vector3d::Ones();
@@ -250,6 +257,9 @@ inline bool buildCompactSegmentPolytope(
             lowCorner(axis) -
                 epsilon)
         {
+            localDiagnostics.failure_reason =
+                "protected_seed_outside_domain";
+
             if (diagnostics != nullptr)
             {
                 *diagnostics =
@@ -1117,6 +1127,11 @@ inline bool buildCompactSegmentPolytope(
                 if (!std::isfinite(
                         metricDistanceSquared))
                 {
+                    localDiagnostics.failure_reason =
+                        "active_witness_metric";
+                    localDiagnostics.failure_obstacle =
+                        obstacleId;
+
                     if (diagnostics != nullptr)
                     {
                         *diagnostics =
@@ -1142,6 +1157,9 @@ inline bool buildCompactSegmentPolytope(
 
             if (witnessId < 0)
             {
+                localDiagnostics.failure_reason =
+                    "active_witness_not_found";
+
                 if (diagnostics != nullptr)
                 {
                     *diagnostics =
@@ -1173,6 +1191,11 @@ inline bool buildCompactSegmentPolytope(
                 normalNorm <=
                     epsilon)
             {
+                localDiagnostics.failure_reason =
+                    "active_witness_normal";
+                localDiagnostics.failure_obstacle =
+                    witnessId;
+
                 if (diagnostics != nullptr)
                 {
                     *diagnostics =
@@ -1208,6 +1231,13 @@ inline bool buildCompactSegmentPolytope(
                 supportGap <=
                     2.0 * epsilon)
             {
+                localDiagnostics.failure_reason =
+                    "active_voxel_support_gap";
+                localDiagnostics.failure_margin =
+                    supportGap;
+                localDiagnostics.failure_obstacle =
+                    witnessId;
+
                 if (diagnostics != nullptr)
                 {
                     *diagnostics =
@@ -1290,6 +1320,11 @@ inline bool buildCompactSegmentPolytope(
                     .covered_obstacles
                     .empty())
             {
+                localDiagnostics.failure_reason =
+                    "active_candidate_coverage_empty";
+                localDiagnostics.failure_obstacle =
+                    witnessId;
+
                 if (diagnostics != nullptr)
                 {
                     *diagnostics =
@@ -1326,6 +1361,11 @@ inline bool buildCompactSegmentPolytope(
 
             if (!witnessCovered)
             {
+                localDiagnostics.failure_reason =
+                    "active_witness_not_covered";
+                localDiagnostics.failure_obstacle =
+                    witnessId;
+
                 if (diagnostics != nullptr)
                 {
                     *diagnostics =
@@ -1648,6 +1688,9 @@ inline bool buildCompactSegmentPolytope(
             normalNorm <=
                 epsilon)
         {
+            localDiagnostics.failure_reason =
+                "final_face_normal";
+
             if (diagnostics != nullptr)
             {
                 *diagnostics =
@@ -1670,6 +1713,12 @@ inline bool buildCompactSegmentPolytope(
         if (protectedValue >
             epsilon)
         {
+            localDiagnostics.failure_reason =
+                "seed_capsule_verification";
+            localDiagnostics.failure_margin =
+                protectedValue /
+                normalNorm;
+
             if (diagnostics != nullptr)
             {
                 *diagnostics =
@@ -1728,6 +1777,13 @@ inline bool buildCompactSegmentPolytope(
         if (!(maxVoxelSeparation >
               epsilon))
         {
+            localDiagnostics.failure_reason =
+                "voxel_safety_verification";
+            localDiagnostics.failure_margin =
+                maxVoxelSeparation;
+            localDiagnostics.failure_obstacle =
+                obstacleId;
+
             if (diagnostics != nullptr)
             {
                 *diagnostics =
