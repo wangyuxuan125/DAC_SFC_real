@@ -53,7 +53,14 @@ def main():
     rows = []
     for path in args.csv_files:
         with path.open(newline="", encoding="utf-8") as handle:
-            rows.extend(csv.DictReader(handle))
+            for row in csv.DictReader(handle):
+                # A newly created deployment CSV can contribute its own header
+                # when a run slice already prepended one.  Ignore such embedded
+                # headers instead of counting them as failed planning calls.
+                if (row.get("run_id") == "run_id" or
+                        row.get("timestamp_s") == "timestamp_s"):
+                    continue
+                rows.append(row)
 
     successful = [row for row in rows if truthy(row["pipeline_success"])]
     activated = sum(truthy(row["trajectory_activated"]) for row in rows)
