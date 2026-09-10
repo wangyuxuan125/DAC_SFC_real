@@ -9,6 +9,11 @@ from collections import Counter
 from pathlib import Path
 
 
+DEFAULT_LATEST_POINTER = Path(
+    "/tmp/dac_sfc_deployment/latest_csv_path.txt"
+)
+
+
 NUMERIC_FIELDS = (
     "astar_ms",
     "shortcut_ms",
@@ -47,11 +52,35 @@ def truthy(value):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("csv_files", nargs="+", type=Path)
+    parser.add_argument(
+        "csv_files",
+        nargs="*",
+        type=Path,
+        help=("session CSV files; when omitted, use the path recorded in "
+              "/tmp/dac_sfc_deployment/latest_csv_path.txt"),
+    )
     args = parser.parse_args()
 
+    csv_files = args.csv_files
+    if not csv_files:
+        try:
+            latest_path = DEFAULT_LATEST_POINTER.read_text(
+                encoding="utf-8"
+            ).strip()
+        except OSError as error:
+            parser.error(
+                f"cannot read latest session pointer "
+                f"{DEFAULT_LATEST_POINTER}: {error}"
+            )
+        if not latest_path:
+            parser.error(
+                f"latest session pointer is empty: "
+                f"{DEFAULT_LATEST_POINTER}"
+            )
+        csv_files = [Path(latest_path)]
+
     rows = []
-    for path in args.csv_files:
+    for path in csv_files:
         with path.open(newline="", encoding="utf-8") as handle:
             for row in csv.DictReader(handle):
                 # A newly created deployment CSV can contribute its own header
