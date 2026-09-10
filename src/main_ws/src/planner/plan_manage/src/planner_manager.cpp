@@ -94,6 +94,15 @@ namespace ego_planner
                                     std::max(astar_pool_z, 10)));
     }
     dac_sfc_logger_.configure(dac_log_enabled, dac_log_directory);
+    if (dac_log_enabled)
+    {
+      if (dac_sfc_logger_.path().empty())
+        ROS_WARN_STREAM("[DAC-SFC] Failed to create a per-session CSV under "
+                        << dac_log_directory);
+      else
+        ROS_INFO_STREAM("[DAC-SFC] Session CSV: "
+                        << dac_sfc_logger_.path());
+    }
     if (dac_sfc_enabled_ && dac_sfc_visualization_enabled_)
     {
       dac_sfc_polyhedron_pub_ =
