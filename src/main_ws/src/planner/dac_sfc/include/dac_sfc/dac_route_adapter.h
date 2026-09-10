@@ -16,6 +16,7 @@ struct RouteOptions
 {
   double max_segment_length = 1.0;
   double line_sample_step_ratio = 0.5;
+  double clearance_radius = 0.0;
 };
 
 struct RouteDiagnostics
@@ -52,7 +53,7 @@ public:
 private:
   bool lineIsFree(const Eigen::Vector3d &start,
                   const Eigen::Vector3d &end,
-                  double sample_step_ratio) const;
+                  double clearance_radius) const;
 
   static double pathLength(const std::vector<Eigen::Vector3d> &path);
   static void removeConsecutiveDuplicates(std::vector<Eigen::Vector3d> &path);
