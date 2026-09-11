@@ -82,12 +82,6 @@ bool DacRouteAdapter::build(const Eigen::Vector3d &start,
     diagnostics.failure_stage = "route_start_outside_map";
     return false;
   }
-  if (!map_->isInInflatedMap(goal))
-  {
-    diagnostics.failure_stage = "route_goal_outside_map";
-    return false;
-  }
-
   const int start_occupancy = map_->getInflateOccupancy(start);
   if (start_occupancy != 0)
   {
@@ -101,6 +95,80 @@ bool DacRouteAdapter::build(const Eigen::Vector3d &start,
   }
 
   Eigen::Vector3d route_goal = goal;
+  if (!map_->isInInflatedMap(route_goal))
+  {
+    if (!allow_occupied_goal_adjustment)
+    {
+      ROS_WARN_STREAM_THROTTLE(
+          1.0, "[DAC-SFC] Local goal outside inflated map: goal="
+                   << goal.transpose() << " start=" << start.transpose()
+                   << " map_lower=" << map_lower.transpose()
+                   << " map_upper=" << map_upper.transpose());
+      diagnostics.failure_stage = "route_goal_outside_map";
+      return false;
+    }
+
+    // The EGO global-trajectory sampler can place its local target at the
+    // planning horizon, while this rolling map is intentionally smaller.
+    // Intersect the start-to-goal ray with the current map instead of treating
+    // that normal horizon mismatch as a planning failure.
+    const double boundary_epsilon =
+        std::max(1.0e-6, 1.0e-3 * map_->getResolution());
+    const Eigen::Vector3d safe_lower =
+        map_lower.array() + options.clearance_radius + boundary_epsilon;
+    const Eigen::Vector3d safe_upper =
+        map_upper.array() - options.clearance_radius - boundary_epsilon;
+    const Eigen::Vector3d direction = goal - start;
+    const double distance = direction.norm();
+    double alpha = 1.0;
+
+    if (!safe_lower.allFinite() || !safe_upper.allFinite() ||
+        (safe_upper.array() <= safe_lower.array()).any() ||
+        !std::isfinite(distance) || distance <= 1.0e-6)
+    {
+      diagnostics.failure_stage = "route_goal_map_clip_failed";
+      return false;
+    }
+
+    for (int axis = 0; axis < 3; ++axis)
+    {
+      if (direction(axis) > 1.0e-12)
+        alpha = std::min(alpha,
+                         (safe_upper(axis) - start(axis)) / direction(axis));
+      else if (direction(axis) < -1.0e-12)
+        alpha = std::min(alpha,
+                         (safe_lower(axis) - start(axis)) / direction(axis));
+    }
+
+    alpha = std::max(0.0, std::min(1.0, alpha));
+    if (!std::isfinite(alpha) || alpha <= 1.0e-6)
+    {
+      ROS_WARN_STREAM_THROTTLE(
+          1.0, "[DAC-SFC] Cannot clip local goal into inflated map: goal="
+                   << goal.transpose() << " start=" << start.transpose()
+                   << " map_lower=" << map_lower.transpose()
+                   << " map_upper=" << map_upper.transpose());
+      diagnostics.failure_stage = "route_goal_map_clip_failed";
+      return false;
+    }
+
+    route_goal = start + alpha * direction;
+    if (!map_->isInInflatedMap(route_goal))
+    {
+      diagnostics.failure_stage = "route_goal_map_clip_failed";
+      return false;
+    }
+
+    diagnostics.goal_adjusted = true;
+    diagnostics.goal_adjustment_distance = (goal - route_goal).norm();
+    ROS_WARN_STREAM_THROTTLE(
+        1.0, "[DAC-SFC] Local goal clipped to rolling map by "
+                 << diagnostics.goal_adjustment_distance << " m: "
+                 << goal.transpose() << " -> " << route_goal.transpose()
+                 << " map_lower=" << map_lower.transpose()
+                 << " map_upper=" << map_upper.transpose());
+  }
+
   const int goal_occupancy = map_->getInflateOccupancy(route_goal);
   if (!map_->isInflatedPointClear(route_goal, options.clearance_radius))
   {
@@ -111,7 +179,7 @@ bool DacRouteAdapter::build(const Eigen::Vector3d &start,
       return false;
     }
 
-    const Eigen::Vector3d goal_direction = goal - start;
+    const Eigen::Vector3d goal_direction = route_goal - start;
     const double goal_distance = goal_direction.norm();
     if (!std::isfinite(goal_distance) || goal_distance <= 1.0e-6)
     {
@@ -124,29 +192,53 @@ bool DacRouteAdapter::build(const Eigen::Vector3d &start,
     const double search_step = std::max(map_->getResolution(), 1.0e-3);
     const double search_limit =
         std::max(options.max_segment_length, search_step);
+    const Eigen::Vector3d unsafe_goal = route_goal;
     bool adjusted = false;
-    for (double offset = search_step;
-         offset <= search_limit + 1.0e-9;
-         offset += search_step)
+
+    // Search backward first. This stays in the already observed part of the
+    // rolling map and avoids pushing a clipped frontier target back outside.
+    for (int direction_sign : {-1, 1})
     {
-      const Eigen::Vector3d candidate = goal + offset * forward;
-      if (!map_->isInInflatedMap(candidate))
-        break;
-      if (map_->isInflatedPointClear(candidate, options.clearance_radius))
+      for (double offset = search_step;
+           offset <= search_limit + 1.0e-9;
+           offset += search_step)
       {
-        route_goal = candidate;
-        diagnostics.goal_adjusted = true;
-        diagnostics.goal_adjustment_distance = offset;
-        adjusted = true;
-        ROS_WARN_STREAM("[DAC-SFC] Unsafe local goal shifted forward by "
-                        << offset << " m: " << goal.transpose()
-                        << " -> " << route_goal.transpose());
-        break;
+        const Eigen::Vector3d candidate =
+            unsafe_goal + direction_sign * offset * forward;
+        if (!map_->isInInflatedMap(candidate))
+        {
+          if (direction_sign > 0)
+            break;
+          continue;
+        }
+        if (map_->isInflatedPointClear(candidate, options.clearance_radius))
+        {
+          route_goal = candidate;
+          diagnostics.goal_adjusted = true;
+          diagnostics.goal_adjustment_distance = (goal - route_goal).norm();
+          adjusted = true;
+          ROS_WARN_STREAM_THROTTLE(
+              1.0, "[DAC-SFC] Unsafe local goal shifted "
+                       << (direction_sign < 0 ? "backward" : "forward")
+                       << " by " << offset << " m: "
+                       << unsafe_goal.transpose() << " -> "
+                       << route_goal.transpose());
+          break;
+        }
       }
+      if (adjusted)
+        break;
     }
 
     if (!adjusted)
     {
+      ROS_WARN_STREAM_THROTTLE(
+          1.0, "[DAC-SFC] Failed to adjust unsafe local goal: goal="
+                   << goal.transpose() << " clipped_goal="
+                   << unsafe_goal.transpose() << " start="
+                   << start.transpose() << " map_lower="
+                   << map_lower.transpose() << " map_upper="
+                   << map_upper.transpose());
       diagnostics.failure_stage = "route_goal_adjustment_failed";
       return false;
     }
