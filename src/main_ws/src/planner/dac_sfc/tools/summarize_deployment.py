@@ -110,6 +110,26 @@ def main():
         for stage, count in failures.most_common():
             print(f"  {stage}: {count}")
 
+    retried = []
+    for row in rows:
+        try:
+            attempts = int(float(row.get("optimizer_attempts", "0") or "0"))
+        except (TypeError, ValueError):
+            attempts = 0
+        if attempts > 1:
+            retried.append(row)
+    if retried:
+        rescued = sum(truthy(row["pipeline_success"]) for row in retried)
+        exhausted = sum(
+            not truthy(row["pipeline_success"]) and
+            row.get("failure_stage") == "corridor_violation"
+            for row in retried
+        )
+        print("optimizer_continuation:")
+        print(f"  retried_runs: {len(retried)}")
+        print(f"  rescued_runs: {rescued}")
+        print(f"  exhausted_runs: {exhausted}")
+
     print("successful_run_metrics:")
     for field in NUMERIC_FIELDS:
         values = []
