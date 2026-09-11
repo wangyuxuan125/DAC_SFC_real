@@ -82,14 +82,49 @@ bool DacRouteAdapter::build(const Eigen::Vector3d &start,
     diagnostics.failure_stage = "route_start_outside_map";
     return false;
   }
+  diagnostics.requested_start_clearance =
+      options.clearance_radius;
   const int start_occupancy = map_->getInflateOccupancy(start);
   if (start_occupancy != 0)
   {
+    diagnostics.available_start_clearance = 0.0;
     diagnostics.failure_stage = "route_start_occupied";
     return false;
   }
-  if (!map_->isInflatedPointClear(start, options.clearance_radius))
+
+  if (map_->isInflatedPointClear(start, options.clearance_radius))
   {
+    diagnostics.available_start_clearance =
+        options.clearance_radius;
+  }
+  else
+  {
+    // Estimate the largest additional tube radius supported at the actual
+    // initial state. The occupancy map already includes the vehicle inflation;
+    // this value measures only DAC-SFC's extra numerical/corridor margin.
+    double lower_clearance = 0.0;
+    double upper_clearance = options.clearance_radius;
+    if (map_->isInflatedPointClear(start, 0.0))
+    {
+      for (int iteration = 0; iteration < 16; ++iteration)
+      {
+        const double candidate_clearance =
+            0.5 * (lower_clearance + upper_clearance);
+        if (map_->isInflatedPointClear(start, candidate_clearance))
+          lower_clearance = candidate_clearance;
+        else
+          upper_clearance = candidate_clearance;
+      }
+    }
+    diagnostics.available_start_clearance =
+        lower_clearance;
+    ROS_WARN_STREAM_THROTTLE(
+        1.0,
+        "[DAC-SFC] Route start lacks requested extra clearance: start="
+            << start.transpose()
+            << " requested_m=" << options.clearance_radius
+            << " available_m=" << lower_clearance
+            << " occupancy=" << start_occupancy);
     diagnostics.failure_stage = "route_start_clearance";
     return false;
   }
