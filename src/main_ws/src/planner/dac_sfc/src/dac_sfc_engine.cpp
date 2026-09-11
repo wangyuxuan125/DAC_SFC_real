@@ -88,6 +88,35 @@ bool DacSfcEngine::plan(const std::vector<Eigen::Vector3d> &route,
     }
   }
 
+  Eigen::Matrix3d effective_terminal_pva = terminal_pva;
+  const Eigen::Vector3d final_route_delta =
+      route.back() - route[route.size() - 2];
+  const double final_route_length = final_route_delta.norm();
+  const double requested_terminal_speed =
+      terminal_pva.col(1).norm();
+  if (options.align_terminal_velocity_with_route &&
+      final_route_length > 1.0e-6 &&
+      requested_terminal_speed > 1.0e-6)
+  {
+    const Eigen::Vector3d final_route_tangent =
+        final_route_delta / final_route_length;
+    const Eigen::Vector3d requested_velocity_direction =
+        terminal_pva.col(1) / requested_terminal_speed;
+    const double direction_cosine =
+        std::max(-1.0, std::min(
+                           1.0,
+                           requested_velocity_direction.dot(
+                               final_route_tangent)));
+    result.diagnostics.terminal_velocity_alignment_angle_deg =
+        std::acos(direction_cosine) *
+        180.0 / std::acos(-1.0);
+    effective_terminal_pva.col(1) =
+        requested_terminal_speed * final_route_tangent;
+    result.diagnostics.terminal_velocity_aligned =
+        result.diagnostics.terminal_velocity_alignment_angle_deg >
+        1.0e-3;
+  }
+
   const int piece_count = static_cast<int>(route.size()) - 1;
   Eigen::Matrix3Xd inner_points(3, std::max(piece_count - 1, 0));
   for (int i = 1; i < static_cast<int>(route.size()) - 1; ++i)
@@ -105,7 +134,7 @@ bool DacSfcEngine::plan(const std::vector<Eigen::Vector3d> &route,
   Trajectory<5> guide_trajectory;
   const Clock::time_point guide_started = Clock::now();
   minco::MINCO_S3NU guide_minco;
-  guide_minco.setConditions(initial_pva, terminal_pva, piece_count);
+  guide_minco.setConditions(initial_pva, effective_terminal_pva, piece_count);
   guide_minco.setParameters(inner_points, guide_times);
   guide_minco.getTrajectory(guide_trajectory);
   result.diagnostics.guide_ms = millisecondsSince(guide_started);
@@ -160,7 +189,7 @@ bool DacSfcEngine::plan(const std::vector<Eigen::Vector3d> &route,
   else
   {
     if (!metric_evaluator.setGaussNewtonReferenceState(
-            initial_pva, terminal_pva, inner_points, guide_times,
+            initial_pva, effective_terminal_pva, inner_points, guide_times,
             options.quadrature_resolution, magnitude_bounds,
             physical_parameters))
     {
@@ -280,7 +309,7 @@ bool DacSfcEngine::plan(const std::vector<Eigen::Vector3d> &route,
   gcopter::GCOPTER_PolytopeSFC optimizer;
   const Clock::time_point setup_started = Clock::now();
   const bool setup_success = optimizer.setup(
-      options.time_weight, initial_pva, terminal_pva, result.corridors,
+      options.time_weight, initial_pva, effective_terminal_pva, result.corridors,
       options.optimizer_piece_length, options.smoothing_epsilon,
       options.quadrature_resolution, magnitude_bounds, penalty_weights,
       physical_parameters);
@@ -451,10 +480,10 @@ bool DacSfcEngine::plan(const std::vector<Eigen::Vector3d> &route,
       if (normal_norm > 1.0e-9)
       {
         terminal_endpoint_face_violation =
-            (normal.dot(terminal_pva.col(0)) + face(3)) /
+            (normal.dot(effective_terminal_pva.col(0)) + face(3)) /
             normal_norm;
         terminal_velocity_face_component =
-            normal.dot(terminal_pva.col(1)) /
+            normal.dot(effective_terminal_pva.col(1)) /
             normal_norm;
 
         const Eigen::Vector3d route_delta =
@@ -490,9 +519,15 @@ bool DacSfcEngine::plan(const std::vector<Eigen::Vector3d> &route,
               << " candidate_max_acc="
               << result.diagnostics.max_acceleration
               << " terminal_point="
-              << terminal_pva.col(0).transpose()
+              << effective_terminal_pva.col(0).transpose()
               << " terminal_velocity="
+              << effective_terminal_pva.col(1).transpose()
+              << " requested_terminal_velocity="
               << terminal_pva.col(1).transpose()
+              << " terminal_velocity_aligned="
+              << result.diagnostics.terminal_velocity_aligned
+              << " terminal_velocity_alignment_angle_deg="
+              << result.diagnostics.terminal_velocity_alignment_angle_deg
               << " endpoint_face_violation_m="
               << terminal_endpoint_face_violation
               << " terminal_velocity_face_component="
