@@ -42,7 +42,12 @@ bool optionsAreValid(const EngineOptions &options)
          options.min_extra_ratio >= 0.0 && options.min_extra_ratio <= 1.0 &&
          options.overlap_radius >= 0.0 && options.map_boundary_margin >= 0.0 &&
          std::isfinite(options.obstacle_voxel_size) &&
-         options.obstacle_voxel_size >= 0.0;
+         options.obstacle_voxel_size >= 0.0 &&
+         std::isfinite(options.position_weight) &&
+         options.position_weight > 0.0 &&
+         options.max_corridor_retries >= 0 &&
+         std::isfinite(options.corridor_penalty_scale) &&
+         options.corridor_penalty_scale > 1.0;
 }
 
 } // namespace
@@ -262,37 +267,96 @@ bool DacSfcEngine::plan(const std::vector<Eigen::Vector3d> &route,
   penalty_weights << options.position_weight, options.velocity_weight,
       options.body_rate_weight, options.tilt_weight, options.thrust_weight;
 
-  gcopter::GCOPTER_PolytopeSFC optimizer;
-  const Clock::time_point setup_started = Clock::now();
-  const bool setup_success = optimizer.setup(
-      options.time_weight, initial_pva, terminal_pva, result.corridors,
-      std::numeric_limits<double>::infinity(), options.smoothing_epsilon,
-      options.quadrature_resolution, magnitude_bounds, penalty_weights,
-      physical_parameters);
-  result.diagnostics.optimizer_setup_ms = millisecondsSince(setup_started);
-  if (!setup_success)
-  {
-    result.diagnostics.failure_stage = "gcopter_setup";
-    return false;
-  }
-
   Trajectory<5> optimized_trajectory;
-  const Clock::time_point optimize_started = Clock::now();
-  result.diagnostics.final_cost =
-      optimizer.optimize(optimized_trajectory, options.relative_cost_tolerance);
-  result.diagnostics.optimizer_ms = millisecondsSince(optimize_started);
-  if (!std::isfinite(result.diagnostics.final_cost) ||
-      optimized_trajectory.getPieceNum() <= 0)
+  bool corridor_satisfied = false;
+  double current_position_weight = options.position_weight;
+  const int total_optimizer_attempts = 1 + options.max_corridor_retries;
+
+  for (int attempt = 0; attempt < total_optimizer_attempts; ++attempt)
   {
-    result.diagnostics.failure_stage = "gcopter_optimize";
-    return false;
+    penalty_weights(0) = current_position_weight;
+
+    gcopter::GCOPTER_PolytopeSFC optimizer;
+    const Clock::time_point setup_started = Clock::now();
+    const bool setup_success = optimizer.setup(
+        options.time_weight, initial_pva, terminal_pva, result.corridors,
+        std::numeric_limits<double>::infinity(), options.smoothing_epsilon,
+        options.quadrature_resolution, magnitude_bounds, penalty_weights,
+        physical_parameters);
+    result.diagnostics.optimizer_setup_ms += millisecondsSince(setup_started);
+    if (!setup_success)
+    {
+      result.diagnostics.failure_stage = "gcopter_setup";
+      return false;
+    }
+
+    Trajectory<5> candidate_trajectory;
+    const Clock::time_point optimize_started = Clock::now();
+    const double candidate_cost =
+        optimizer.optimize(candidate_trajectory, options.relative_cost_tolerance);
+    result.diagnostics.optimizer_ms += millisecondsSince(optimize_started);
+    ++result.diagnostics.optimizer_attempts;
+    result.diagnostics.final_cost = candidate_cost;
+    result.diagnostics.final_position_weight = current_position_weight;
+
+    if (!std::isfinite(candidate_cost) ||
+        candidate_trajectory.getPieceNum() <= 0)
+    {
+      result.diagnostics.failure_stage = "gcopter_optimize";
+      return false;
+    }
+
+    const auto &final_corridor = optimizer.getFinalCorridorDiagnostics();
+    result.diagnostics.final_corridor_violation =
+        final_corridor.maxViolationM;
+
+    if (std::isfinite(final_corridor.maxViolationM) &&
+        final_corridor.maxViolationM <=
+            options.max_final_corridor_violation)
+    {
+      optimized_trajectory = candidate_trajectory;
+      corridor_satisfied = true;
+      break;
+    }
+
+    if (!std::isfinite(final_corridor.maxViolationM))
+    {
+      result.diagnostics.failure_stage = "corridor_violation";
+      return false;
+    }
+
+    if (attempt + 1 < total_optimizer_attempts)
+    {
+      const double next_position_weight =
+          current_position_weight * options.corridor_penalty_scale;
+      if (!std::isfinite(next_position_weight))
+      {
+        result.diagnostics.failure_stage = "corridor_penalty_overflow";
+        return false;
+      }
+
+      std::cerr << "[DAC-SFC] GCOPTER corridor continuation attempt="
+                << (attempt + 1) << "/" << total_optimizer_attempts
+                << " violation_m=" << final_corridor.maxViolationM
+                << " limit_m=" << options.max_final_corridor_violation
+                << " position_weight=" << current_position_weight
+                << " next_position_weight=" << next_position_weight
+                << std::endl;
+
+      current_position_weight = next_position_weight;
+    }
   }
 
-  const auto &final_corridor = optimizer.getFinalCorridorDiagnostics();
-  result.diagnostics.final_corridor_violation = final_corridor.maxViolationM;
-  if (!std::isfinite(final_corridor.maxViolationM) ||
-      final_corridor.maxViolationM > options.max_final_corridor_violation)
+  if (!corridor_satisfied)
   {
+    std::cerr << "[DAC-SFC] GCOPTER corridor continuation exhausted attempts="
+              << result.diagnostics.optimizer_attempts
+              << " violation_m="
+              << result.diagnostics.final_corridor_violation
+              << " limit_m=" << options.max_final_corridor_violation
+              << " final_position_weight="
+              << result.diagnostics.final_position_weight
+              << std::endl;
     result.diagnostics.failure_stage = "corridor_violation";
     return false;
   }
