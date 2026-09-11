@@ -36,6 +36,8 @@ NUMERIC_FIELDS = (
     "final_dynamic_penalty_scale",
     "terminal_velocity_alignment_angle_deg",
     "terminal_velocity_speed_ratio",
+    "dynamic_limit_retries",
+    "optimizer_cold_restarts",
 )
 
 
@@ -156,7 +158,17 @@ def main():
         print("optimizer_continuation:")
         print(f"  retried_runs: {len(retried)}")
         print(f"  rescued_runs: {rescued}")
+        dynamic_retry_count = sum(
+            int(float(row.get("dynamic_limit_retries", "0") or "0"))
+            for row in retried
+        )
+        cold_restart_count = sum(
+            int(float(row.get("optimizer_cold_restarts", "0") or "0"))
+            for row in retried
+        )
         print(f"  exhausted_runs: {exhausted}")
+        print(f"  dynamic_limit_retries: {dynamic_retry_count}")
+        print(f"  optimizer_cold_restarts: {cold_restart_count}")
 
     print("successful_run_metrics:")
     for field in NUMERIC_FIELDS:
