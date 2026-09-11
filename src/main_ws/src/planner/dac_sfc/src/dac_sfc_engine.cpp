@@ -326,25 +326,35 @@ bool DacSfcEngine::plan(const std::vector<Eigen::Vector3d> &route,
   }
 
   Trajectory<5> optimized_trajectory;
-  bool corridor_satisfied = false;
+  bool constraints_satisfied = false;
+  std::string constraint_failure_stage = "corridor_violation";
+  int corridor_retries_used = 0;
+  int dynamic_retries_used = 0;
+  int optimizer_restarts_used = 0;
   double cumulative_penalty_scale = 1.0;
   double cumulative_dynamic_penalty_scale = 1.0;
-  const int total_optimizer_attempts = 1 + options.max_corridor_retries;
+  bool use_warm_continuation = false;
+  const int total_optimizer_attempts =
+      1 + options.max_corridor_retries +
+      options.max_dynamic_retries +
+      options.max_optimizer_restarts;
+  const double dynamic_limit_multiplier =
+      1.0 + options.dynamic_limit_tolerance;
 
   for (int attempt = 0; attempt < total_optimizer_attempts; ++attempt)
   {
     Trajectory<5> candidate_trajectory;
     const Clock::time_point optimize_started = Clock::now();
     const double candidate_cost =
-        attempt == 0
-            ? optimizer.optimize(
-                  candidate_trajectory,
-                  options.relative_cost_tolerance)
-            : optimizer.continueOptimizeWithPenaltyScales(
+        use_warm_continuation
+            ? optimizer.continueOptimizeWithPenaltyScales(
                   candidate_trajectory,
                   options.relative_cost_tolerance,
                   cumulative_penalty_scale,
-                  cumulative_dynamic_penalty_scale);
+                  cumulative_dynamic_penalty_scale)
+            : optimizer.optimize(
+                  candidate_trajectory,
+                  options.relative_cost_tolerance);
     result.diagnostics.optimizer_ms += millisecondsSince(optimize_started);
     ++result.diagnostics.optimizer_attempts;
     result.diagnostics.final_cost = candidate_cost;
@@ -356,9 +366,51 @@ bool DacSfcEngine::plan(const std::vector<Eigen::Vector3d> &route,
     if (!std::isfinite(candidate_cost) ||
         candidate_trajectory.getPieceNum() <= 0)
     {
+      if (!use_warm_continuation &&
+          optimizer_restarts_used <
+              options.max_optimizer_restarts &&
+          effective_terminal_pva.col(1).norm() > 1.0e-6)
+      {
+        effective_terminal_pva.col(1).setZero();
+        result.diagnostics.terminal_velocity_speed_ratio = 0.0;
+        result.diagnostics.terminal_velocity_aligned =
+            terminal_pva.col(1).norm() > 1.0e-6;
+        ++optimizer_restarts_used;
+        ++result.diagnostics.optimizer_cold_restarts;
+        cumulative_penalty_scale = 1.0;
+        cumulative_dynamic_penalty_scale = 1.0;
+
+        const Clock::time_point restart_setup_started = Clock::now();
+        const bool restart_setup_success = optimizer.setup(
+            options.time_weight, initial_pva, effective_terminal_pva,
+            result.corridors, options.optimizer_piece_length,
+            options.smoothing_epsilon, options.quadrature_resolution,
+            magnitude_bounds, penalty_weights, physical_parameters);
+        result.diagnostics.optimizer_setup_ms +=
+            millisecondsSince(restart_setup_started);
+        if (!restart_setup_success)
+        {
+          result.diagnostics.failure_stage =
+              "gcopter_restart_setup";
+          return false;
+        }
+
+        std::cerr << "[DAC-SFC] GCOPTER cold restart with zero terminal velocity"
+                  << " attempt=" << (attempt + 1)
+                  << "/" << total_optimizer_attempts
+                  << " failed_cost=" << candidate_cost
+                  << " alignment_angle_deg="
+                  << result.diagnostics
+                         .terminal_velocity_alignment_angle_deg
+                  << std::endl;
+        use_warm_continuation = false;
+        continue;
+      }
+
       result.diagnostics.failure_stage =
-          attempt == 0 ? "gcopter_optimize"
-                       : "gcopter_corridor_continuation";
+          use_warm_continuation
+              ? "gcopter_constraint_continuation"
+              : "gcopter_optimize";
       std::cerr << "[DAC-SFC] GCOPTER returned invalid candidate attempt="
                 << (attempt + 1) << "/" << total_optimizer_attempts
                 << " cost=" << candidate_cost
@@ -368,9 +420,12 @@ bool DacSfcEngine::plan(const std::vector<Eigen::Vector3d> &route,
                 << " effective_terminal_velocity="
                 << effective_terminal_pva.col(1).transpose()
                 << " alignment_angle_deg="
-                << result.diagnostics.terminal_velocity_alignment_angle_deg
+                << result.diagnostics
+                       .terminal_velocity_alignment_angle_deg
                 << " terminal_speed_ratio="
                 << result.diagnostics.terminal_velocity_speed_ratio
+                << " cold_restarts="
+                << result.diagnostics.optimizer_cold_restarts
                 << std::endl;
       return false;
     }
@@ -391,7 +446,8 @@ bool DacSfcEngine::plan(const std::vector<Eigen::Vector3d> &route,
                    candidate_piece.getMaxAccRate());
     }
 
-    const auto &final_corridor = optimizer.getFinalCorridorDiagnostics();
+    const auto &final_corridor =
+        optimizer.getFinalCorridorDiagnostics();
     result.diagnostics.final_corridor_violation =
         final_corridor.maxViolationM;
     result.diagnostics.violation_piece =
@@ -407,12 +463,20 @@ bool DacSfcEngine::plan(const std::vector<Eigen::Vector3d> &route,
     result.diagnostics.violation_position =
         final_corridor.maxViolationPosition;
 
-    if (std::isfinite(final_corridor.maxViolationM) &&
+    const bool corridor_ok =
+        std::isfinite(final_corridor.maxViolationM) &&
         final_corridor.maxViolationM <=
-            options.max_final_corridor_violation)
+            options.max_final_corridor_violation;
+    const bool dynamics_ok =
+        result.diagnostics.max_velocity <=
+            options.max_velocity * dynamic_limit_multiplier &&
+        result.diagnostics.max_acceleration <=
+            options.max_acceleration * dynamic_limit_multiplier;
+
+    if (corridor_ok && dynamics_ok)
     {
       optimized_trajectory = candidate_trajectory;
-      corridor_satisfied = true;
+      constraints_satisfied = true;
       break;
     }
 
@@ -422,10 +486,15 @@ bool DacSfcEngine::plan(const std::vector<Eigen::Vector3d> &route,
       return false;
     }
 
-    if (attempt + 1 < total_optimizer_attempts)
+    if (!corridor_ok)
     {
+      constraint_failure_stage = "corridor_violation";
+      if (corridor_retries_used >= options.max_corridor_retries)
+        break;
+
       const double next_penalty_scale =
-          cumulative_penalty_scale * options.corridor_penalty_scale;
+          cumulative_penalty_scale *
+          options.corridor_penalty_scale;
       const double next_dynamic_penalty_scale =
           cumulative_dynamic_penalty_scale *
           options.dynamic_penalty_scale;
@@ -435,41 +504,91 @@ bool DacSfcEngine::plan(const std::vector<Eigen::Vector3d> &route,
           !std::isfinite(next_dynamic_penalty_scale) ||
           !std::isfinite(next_position_weight))
       {
-        result.diagnostics.failure_stage = "corridor_penalty_overflow";
+        result.diagnostics.failure_stage =
+            "corridor_penalty_overflow";
         return false;
       }
 
-      std::cerr << "[DAC-SFC] GCOPTER warm corridor continuation attempt="
-                << (attempt + 1) << "/" << total_optimizer_attempts
-                << " violation_m=" << final_corridor.maxViolationM
-                << " limit_m=" << options.max_final_corridor_violation
-                << " piece=" << final_corridor.maxViolationPiece
-                << " corridor=" << final_corridor.maxViolationCorridor
-                << " face=" << final_corridor.maxViolationFace
-                << " sample=" << final_corridor.maxViolationSample
-                << " piece_t=" << final_corridor.maxViolationTime
-                << " point="
-                << final_corridor.maxViolationPosition.transpose()
-                << " position_weight="
-                << result.diagnostics.final_position_weight
-                << " dynamic_scale="
-                << cumulative_dynamic_penalty_scale
-                << " next_dynamic_scale="
-                << next_dynamic_penalty_scale
-                << " candidate_max_vel="
-                << result.diagnostics.max_velocity
-                << " candidate_max_acc="
-                << result.diagnostics.max_acceleration
-                << " next_position_weight=" << next_position_weight
-                << std::endl;
+      ++corridor_retries_used;
+      std::cerr
+          << "[DAC-SFC] GCOPTER warm corridor continuation retry="
+          << corridor_retries_used << "/"
+          << options.max_corridor_retries
+          << " violation_m=" << final_corridor.maxViolationM
+          << " limit_m=" << options.max_final_corridor_violation
+          << " candidate_max_vel="
+          << result.diagnostics.max_velocity
+          << " candidate_max_acc="
+          << result.diagnostics.max_acceleration
+          << " next_position_weight=" << next_position_weight
+          << " next_dynamic_scale="
+          << next_dynamic_penalty_scale
+          << std::endl;
 
       cumulative_penalty_scale = next_penalty_scale;
       cumulative_dynamic_penalty_scale =
           next_dynamic_penalty_scale;
+      use_warm_continuation = true;
+      continue;
     }
+
+    constraint_failure_stage = "dynamic_limits";
+    if (dynamic_retries_used >= options.max_dynamic_retries)
+      break;
+
+    const double next_dynamic_penalty_scale =
+        cumulative_dynamic_penalty_scale *
+        options.dynamic_penalty_scale;
+    if (!std::isfinite(next_dynamic_penalty_scale))
+    {
+      result.diagnostics.failure_stage =
+          "dynamic_penalty_overflow";
+      return false;
+    }
+
+    ++dynamic_retries_used;
+    ++result.diagnostics.dynamic_limit_retries;
+    std::cerr
+        << "[DAC-SFC] GCOPTER warm dynamic continuation retry="
+        << dynamic_retries_used << "/"
+        << options.max_dynamic_retries
+        << " max_vel=" << result.diagnostics.max_velocity
+        << " vel_limit="
+        << options.max_velocity * dynamic_limit_multiplier
+        << " max_acc=" << result.diagnostics.max_acceleration
+        << " acc_limit="
+        << options.max_acceleration * dynamic_limit_multiplier
+        << " position_weight="
+        << result.diagnostics.final_position_weight
+        << " next_dynamic_scale="
+        << next_dynamic_penalty_scale
+        << std::endl;
+
+    cumulative_dynamic_penalty_scale =
+        next_dynamic_penalty_scale;
+    use_warm_continuation = true;
   }
 
-  if (!corridor_satisfied)
+  if (!constraints_satisfied &&
+      constraint_failure_stage == "dynamic_limits")
+  {
+    std::cerr << "[DAC-SFC] GCOPTER warm dynamic continuation exhausted"
+              << " attempts=" << result.diagnostics.optimizer_attempts
+              << " retries=" << result.diagnostics.dynamic_limit_retries
+              << " max_vel=" << result.diagnostics.max_velocity
+              << " vel_limit="
+              << options.max_velocity * dynamic_limit_multiplier
+              << " max_acc=" << result.diagnostics.max_acceleration
+              << " acc_limit="
+              << options.max_acceleration * dynamic_limit_multiplier
+              << " final_dynamic_scale="
+              << result.diagnostics.final_dynamic_penalty_scale
+              << std::endl;
+    result.diagnostics.failure_stage = "dynamic_limits";
+    return false;
+  }
+
+  if (!constraints_satisfied)
   {
     double terminal_endpoint_face_violation =
         std::numeric_limits<double>::quiet_NaN();
