@@ -727,6 +727,8 @@ namespace ego_planner
     poly_traj::Trajectory candidate;
     bool sampled_collision_free = false;
     bool dynamic_limits_satisfied = false;
+    const double dynamic_limit_tolerance =
+        1.0 + std::max(0.0, pp_.feasibility_tolerance_);
     std::string trajectory_safety_failure;
     if (engine_success)
     {
@@ -740,12 +742,13 @@ namespace ego_planner
       candidate = poly_traj::Trajectory(durations, coefficients);
       sampled_collision_free =
           trajectoryIsCollisionFree(candidate, trajectory_safety_failure);
-      const double tolerance = 1.0 + std::max(0.0, pp_.feasibility_tolerance_);
       dynamic_limits_satisfied =
           (pp_.max_vel_ <= 0.0 ||
-           engine_result.diagnostics.max_velocity <= pp_.max_vel_ * tolerance) &&
+           engine_result.diagnostics.max_velocity <=
+               pp_.max_vel_ * dynamic_limit_tolerance) &&
           (pp_.max_acc_ <= 0.0 ||
-           engine_result.diagnostics.max_acceleration <= pp_.max_acc_ * tolerance);
+           engine_result.diagnostics.max_acceleration <=
+               pp_.max_acc_ * dynamic_limit_tolerance);
     }
 
     record.sampled_collision_free = sampled_collision_free;
@@ -762,10 +765,10 @@ namespace ego_planner
       record.failure_stage = "dynamic_limits";
       ROS_WARN_STREAM("[DAC-SFC] Dynamic limits rejected trajectory:"
                       << " max_vel=" << engine_result.diagnostics.max_velocity
-                      << " vel_limit=" << pp_.max_vel_ * tolerance
+                      << " vel_limit=" << pp_.max_vel_ * dynamic_limit_tolerance
                       << " max_acc="
                       << engine_result.diagnostics.max_acceleration
-                      << " acc_limit=" << pp_.max_acc_ * tolerance);
+                      << " acc_limit=" << pp_.max_acc_ * dynamic_limit_tolerance);
     }
 
     if (record.pipeline_success && !dac_sfc_shadow_only_)
