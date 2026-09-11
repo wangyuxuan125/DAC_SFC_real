@@ -60,6 +60,24 @@ namespace gcopter
         
             double maxViolationM =
                 0.0;
+
+            int maxViolationPiece =
+                -1;
+
+            int maxViolationCorridor =
+                -1;
+
+            int maxViolationFace =
+                -1;
+
+            int maxViolationSample =
+                -1;
+
+            double maxViolationTime =
+                0.0;
+
+            Eigen::Vector3d maxViolationPosition =
+                Eigen::Vector3d::Zero();
         
             // Minimum normalized distance from sampled trajectory
             // positions to their assigned corridor faces.
@@ -356,10 +374,32 @@ namespace gcopter
                         const double normalizedViolation =
                             violation / normalNorm;
 
-                        diagnostics.maxViolationM =
-                            std::max(
-                                diagnostics.maxViolationM,
-                                normalizedViolation);
+                        if (normalizedViolation >
+                            diagnostics.maxViolationM)
+                        {
+                            diagnostics.maxViolationM =
+                                normalizedViolation;
+
+                            diagnostics.maxViolationPiece =
+                                pieceId;
+
+                            diagnostics.maxViolationCorridor =
+                                corridorId;
+
+                            diagnostics.maxViolationFace =
+                                faceId;
+
+                            diagnostics.maxViolationSample =
+                                sampleId;
+
+                            diagnostics.maxViolationTime =
+                                step *
+                                static_cast<double>(
+                                    sampleId);
+
+                            diagnostics.maxViolationPosition =
+                                position;
+                        }
                             
                         diagnostics.minSlackM =
                             std::min(
