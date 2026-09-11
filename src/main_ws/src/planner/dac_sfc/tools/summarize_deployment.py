@@ -33,6 +33,7 @@ NUMERIC_FIELDS = (
     "optimizer_attempts",
     "final_position_weight",
     "optimizer_piece_count",
+    "final_dynamic_penalty_scale",
 )
 
 
