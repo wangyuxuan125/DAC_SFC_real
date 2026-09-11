@@ -18,6 +18,7 @@ using CoefficientMats = std::vector<
 struct EngineOptions
 {
   double max_velocity = 2.0;
+  double max_acceleration = 4.0;
   double max_body_rate = 2.1;
   double max_tilt_angle = 1.05;
   double min_thrust = 2.0;
@@ -33,6 +34,7 @@ struct EngineOptions
   double time_weight = 20.0;
   double position_weight = 1.0e4;
   double velocity_weight = 1.0e4;
+  double acceleration_weight = 1.0e4;
   double body_rate_weight = 1.0e4;
   double tilt_weight = 1.0e4;
   double thrust_weight = 1.0e5;
@@ -55,9 +57,9 @@ struct EngineOptions
   // resolution so Active-Witness uses the complete axis-aligned voxel support
   // during face generation, set cover, and final safety verification.
   double obstacle_voxel_size = 0.0;
-  double max_final_corridor_violation = 0.02;
-  // Retry GCOPTER with a stronger position/corridor penalty when the
-  // optimized trajectory exceeds the verified corridor.
+  double max_final_corridor_violation = 0.002;
+  // Retry GCOPTER with a stronger complete constraint penalty group when
+  // the optimized trajectory exceeds the verified corridor.
   int max_corridor_retries = 2;
   double corridor_penalty_scale = 10.0;
 };
