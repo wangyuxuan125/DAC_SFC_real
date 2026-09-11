@@ -12,6 +12,7 @@
     <arg name="dac_sfc_acceleration_weight" default="10000.0"/>
     <arg name="dac_sfc_optimizer_piece_length" default="0.75"/>
     <arg name="dac_sfc_align_terminal_velocity_with_route" default="true"/>
+    <arg name="dac_sfc_overlap_radius" default="0.04"/>
     <arg name="max_vel" default="1.5"/>
     <arg name="max_acc" default="3.0"/>
     <!-- Keep the local target inside the 5.5 m rolling-map half range. -->
@@ -59,6 +60,7 @@
         <arg name="dac_sfc_acceleration_weight" value="$(arg dac_sfc_acceleration_weight)"/>
         <arg name="dac_sfc_optimizer_piece_length" value="$(arg dac_sfc_optimizer_piece_length)"/>
         <arg name="dac_sfc_align_terminal_velocity_with_route" value="$(arg dac_sfc_align_terminal_velocity_with_route)"/>
+        <arg name="dac_sfc_overlap_radius" value="$(arg dac_sfc_overlap_radius)"/>
         <arg name="map_size_x_" value="$(arg map_size_x)"/>
         <arg name="map_size_y_" value="$(arg map_size_y)"/>
         <arg name="map_size_z_" value="$(arg map_size_z)"/>
