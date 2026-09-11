@@ -30,6 +30,8 @@ NUMERIC_FIELDS = (
     "trajectory_duration_s",
     "max_velocity_mps",
     "max_acceleration_mps2",
+    "optimizer_attempts",
+    "final_position_weight",
 )
 
 
