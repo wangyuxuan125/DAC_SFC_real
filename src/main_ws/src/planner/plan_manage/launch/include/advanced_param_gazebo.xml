@@ -38,6 +38,8 @@
     <arg name="dac_sfc_log_directory" default="/tmp/dac_sfc_deployment"/>
     <arg name="dac_sfc_max_corridor_retries" default="2"/>
     <arg name="dac_sfc_corridor_penalty_scale" default="10.0"/>
+    <arg name="dac_sfc_max_final_corridor_violation" default="0.002"/>
+    <arg name="dac_sfc_acceleration_weight" default="10000.0"/>
     <!-- main node -->
     <!-- <node pkg="ego_planner" name="ego_planner_node" type="ego_planner_node" output="screen" launch-prefix="valgrind"> -->
     <node pkg="ego_planner" name="drone_$(arg drone_id)_ego_planner_node" type="ego_planner_node" output="screen">
@@ -171,6 +173,8 @@
         <param name="manager/dac_sfc/log_directory" value="$(arg dac_sfc_log_directory)" type="string"/>
         <param name="manager/dac_sfc/max_corridor_retries" value="$(arg dac_sfc_max_corridor_retries)" type="int"/>
         <param name="manager/dac_sfc/corridor_penalty_scale" value="$(arg dac_sfc_corridor_penalty_scale)" type="double"/>
+        <param name="manager/dac_sfc/max_final_corridor_violation" value="$(arg dac_sfc_max_final_corridor_violation)" type="double"/>
+        <param name="manager/dac_sfc/acceleration_weight" value="$(arg dac_sfc_acceleration_weight)" type="double"/>
         <param name="manager/dac_sfc/max_segment_length" value="1.0" type="double"/>
         <param name="manager/dac_sfc/max_extra_radius" value="1.0" type="double"/>
         <param name="manager/dac_sfc/overlap_radius" value="0.04" type="double"/>
