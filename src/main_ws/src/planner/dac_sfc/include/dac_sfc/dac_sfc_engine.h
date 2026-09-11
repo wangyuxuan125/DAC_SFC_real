@@ -68,6 +68,9 @@ struct EngineOptions
   // Retry GCOPTER with a stronger complete constraint penalty group when
   // the optimized trajectory exceeds the verified corridor.
   int max_corridor_retries = 2;
+  int max_dynamic_retries = 2;
+  int max_optimizer_restarts = 1;
+  double dynamic_limit_tolerance = 0.05;
   double corridor_penalty_scale = 100.0;
   double dynamic_penalty_scale = 10.0;
 };
@@ -102,6 +105,8 @@ struct EngineDiagnostics
   double violation_time = 0.0;
   Eigen::Vector3d violation_position = Eigen::Vector3d::Zero();
   int optimizer_attempts = 0;
+  int dynamic_limit_retries = 0;
+  int optimizer_cold_restarts = 0;
   double final_position_weight = 0.0;
   double final_dynamic_penalty_scale = 1.0;
   bool terminal_velocity_aligned = false;
