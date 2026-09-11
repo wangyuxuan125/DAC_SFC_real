@@ -110,11 +110,16 @@ bool DacSfcEngine::plan(const std::vector<Eigen::Vector3d> &route,
     result.diagnostics.terminal_velocity_alignment_angle_deg =
         std::acos(direction_cosine) *
         180.0 / std::acos(-1.0);
+    const double projected_terminal_speed =
+        std::max(0.0,
+                 terminal_pva.col(1).dot(final_route_tangent));
+    result.diagnostics.terminal_velocity_speed_ratio =
+        projected_terminal_speed / requested_terminal_speed;
     effective_terminal_pva.col(1) =
-        requested_terminal_speed * final_route_tangent;
+        projected_terminal_speed * final_route_tangent;
     result.diagnostics.terminal_velocity_aligned =
-        result.diagnostics.terminal_velocity_alignment_angle_deg >
-        1.0e-3;
+        (effective_terminal_pva.col(1) -
+         terminal_pva.col(1)).norm() > 1.0e-6;
   }
 
   const int piece_count = static_cast<int>(route.size()) - 1;
@@ -354,6 +359,19 @@ bool DacSfcEngine::plan(const std::vector<Eigen::Vector3d> &route,
       result.diagnostics.failure_stage =
           attempt == 0 ? "gcopter_optimize"
                        : "gcopter_corridor_continuation";
+      std::cerr << "[DAC-SFC] GCOPTER returned invalid candidate attempt="
+                << (attempt + 1) << "/" << total_optimizer_attempts
+                << " cost=" << candidate_cost
+                << " pieces=" << candidate_trajectory.getPieceNum()
+                << " requested_terminal_velocity="
+                << terminal_pva.col(1).transpose()
+                << " effective_terminal_velocity="
+                << effective_terminal_pva.col(1).transpose()
+                << " alignment_angle_deg="
+                << result.diagnostics.terminal_velocity_alignment_angle_deg
+                << " terminal_speed_ratio="
+                << result.diagnostics.terminal_velocity_speed_ratio
+                << std::endl;
       return false;
     }
 
@@ -528,6 +546,8 @@ bool DacSfcEngine::plan(const std::vector<Eigen::Vector3d> &route,
               << result.diagnostics.terminal_velocity_aligned
               << " terminal_velocity_alignment_angle_deg="
               << result.diagnostics.terminal_velocity_alignment_angle_deg
+              << " terminal_velocity_speed_ratio="
+              << result.diagnostics.terminal_velocity_speed_ratio
               << " endpoint_face_violation_m="
               << terminal_endpoint_face_violation
               << " terminal_velocity_face_component="
