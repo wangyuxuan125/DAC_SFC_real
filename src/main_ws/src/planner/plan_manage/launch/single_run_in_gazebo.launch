@@ -11,7 +11,8 @@
     <arg name="dac_sfc_acceleration_weight" default="10000.0"/>
     <arg name="max_vel" default="1.5"/>
     <arg name="max_acc" default="3.0"/>
-    <arg name="planning_horizon" default="7.5"/>
+    <!-- Keep the local target inside the 5.5 m rolling-map half range. -->
+    <arg name="planning_horizon" default="5.0"/>
     <arg name="map_size_x" value="100.0"/>
     <arg name="map_size_y" value="100.0"/>
     <arg name="map_size_z" value=" 3.0"/>
