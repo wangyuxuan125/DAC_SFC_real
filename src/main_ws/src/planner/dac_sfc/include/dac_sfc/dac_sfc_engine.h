@@ -47,6 +47,9 @@ struct EngineOptions
   // GCOPTER subdivides long corridors so the quintic trajectory has enough
   // internal degrees of freedom to remain inside narrow/turning polytopes.
   double optimizer_piece_length = 0.75;
+  // The rolling-horizon terminal velocity may point across the final safe
+  // segment. Align its direction with that segment while preserving speed.
+  bool align_terminal_velocity_with_route = true;
   double csgn_displacement_step = 0.01;
   double csgn_relative_damping = 1.0e-3;
   double csgn_proximity_power = 4.0;
@@ -100,6 +103,8 @@ struct EngineDiagnostics
   int optimizer_attempts = 0;
   double final_position_weight = 0.0;
   double final_dynamic_penalty_scale = 1.0;
+  bool terminal_velocity_aligned = false;
+  double terminal_velocity_alignment_angle_deg = 0.0;
   double trajectory_duration = 0.0;
   double max_velocity = 0.0;
   double max_acceleration = 0.0;
