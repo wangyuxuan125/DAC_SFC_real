@@ -121,15 +121,27 @@ namespace ego_planner
     {
       if (planner_manager_->pp_.drone_id <= 0 || (planner_manager_->pp_.drone_id >= 1 && have_recv_pre_agent_))
       {
-        bool success = planFromGlobalTraj(10); // zx-todo
+        // A failed DAC call can return in microseconds before any optimizer is
+        // entered. Limit first-trajectory retries to 5 Hz so one geometric
+        // condition is not recorded hundreds of times per second.
+        static ros::Time next_first_plan_attempt(0.0);
+        const ros::Time now = ros::Time::now();
+        if (!next_first_plan_attempt.isZero() &&
+            now < next_first_plan_attempt)
+          break;
+
+        bool success = planFromGlobalTraj(1);
         if (success)
         {
+          next_first_plan_attempt = ros::Time(0.0);
           changeFSMExecState(EXEC_TRAJ, "FSM");
         }
         else
         {
-          ROS_WARN("Failed to generate the first trajectory, keep trying");
-          changeFSMExecState(SEQUENTIAL_START, "FSM"); // "changeFSMExecState" must be called each time planned
+          next_first_plan_attempt = now + ros::Duration(0.2);
+          ROS_WARN_THROTTLE(
+              1.0, "Failed to generate the first trajectory, retrying at 5 Hz");
+          changeFSMExecState(SEQUENTIAL_START, "FSM");
         }
       }
 
