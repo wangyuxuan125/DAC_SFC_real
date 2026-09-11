@@ -39,6 +39,7 @@ namespace ego_planner
     nh.param("manager/dac_sfc/line_sample_step_ratio", dac_route_options_.line_sample_step_ratio, 0.5);
 
     dac_engine_options_.max_velocity = pp_.max_vel_;
+    dac_engine_options_.max_acceleration = pp_.max_acc_;
     nh.param("manager/dac_sfc/max_body_rate", dac_engine_options_.max_body_rate, 2.1);
     nh.param("manager/dac_sfc/max_tilt_angle", dac_engine_options_.max_tilt_angle, 1.05);
     nh.param("manager/dac_sfc/min_thrust", dac_engine_options_.min_thrust, 2.0);
@@ -52,6 +53,8 @@ namespace ego_planner
     nh.param("manager/dac_sfc/time_weight", dac_engine_options_.time_weight, 20.0);
     nh.param("manager/dac_sfc/position_weight", dac_engine_options_.position_weight, 1.0e4);
     nh.param("manager/dac_sfc/velocity_weight", dac_engine_options_.velocity_weight, 1.0e4);
+    nh.param("manager/dac_sfc/acceleration_weight",
+             dac_engine_options_.acceleration_weight, 1.0e4);
     nh.param("manager/dac_sfc/body_rate_weight", dac_engine_options_.body_rate_weight, 1.0e4);
     nh.param("manager/dac_sfc/tilt_weight", dac_engine_options_.tilt_weight, 1.0e4);
     nh.param("manager/dac_sfc/thrust_weight", dac_engine_options_.thrust_weight, 1.0e5);
@@ -71,7 +74,8 @@ namespace ego_planner
     // rejected later as active_voxel_support_gap.
     dac_route_options_.clearance_radius = dac_engine_options_.overlap_radius;
     nh.param("manager/dac_sfc/map_boundary_margin", dac_engine_options_.map_boundary_margin, 0.02);
-    nh.param("manager/dac_sfc/max_final_corridor_violation", dac_engine_options_.max_final_corridor_violation, 0.02);
+    nh.param("manager/dac_sfc/max_final_corridor_violation",
+             dac_engine_options_.max_final_corridor_violation, 0.002);
     nh.param("manager/dac_sfc/max_corridor_retries", dac_engine_options_.max_corridor_retries, 2);
     nh.param("manager/dac_sfc/corridor_penalty_scale", dac_engine_options_.corridor_penalty_scale, 10.0);
 
