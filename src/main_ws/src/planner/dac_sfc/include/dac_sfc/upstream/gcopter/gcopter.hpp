@@ -4141,10 +4141,11 @@ namespace gcopter
             return minCostFunctional;
         }
 
-        inline double continueOptimizeWithCorridorPenaltyScale(
+        inline double continueOptimizeWithPenaltyScales(
             Trajectory<5> &traj,
             const double &relCostTol,
-            const double corridorPenaltyScale)
+            const double corridorPenaltyScale,
+            const double dynamicPenaltyScale)
         {
             if (!optimizedStateValid ||
                 optimizedX.size() !=
@@ -4155,7 +4156,10 @@ namespace gcopter
                 basePenaltyWt.size() <= 0 ||
                 !std::isfinite(
                     corridorPenaltyScale) ||
-                corridorPenaltyScale <= 0.0)
+                corridorPenaltyScale <= 0.0 ||
+                !std::isfinite(
+                    dynamicPenaltyScale) ||
+                dynamicPenaltyScale <= 0.0)
             {
                 traj.clear();
                 return INFINITY;
@@ -4185,12 +4189,17 @@ namespace gcopter
                     penaltyWt;
 
             // --------------------------------------------------------
-            // Scale the complete constraint group while preserving the
-            // relative balance between corridor, velocity, acceleration,
-            // body-rate, tilt and thrust penalties.
+            // Use independent continuation scales. The position term must
+            // grow faster to move the polynomial back into the corridor,
+            // while the dynamic group still grows enough to prevent that
+            // geometric repair from violating velocity or acceleration.
             // --------------------------------------------------------
             penaltyWt =
                 basePenaltyWt *
+                dynamicPenaltyScale;
+
+            penaltyWt(0) =
+                basePenaltyWt(0) *
                 corridorPenaltyScale;
 
             // --------------------------------------------------------
