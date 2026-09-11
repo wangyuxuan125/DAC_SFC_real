@@ -25,6 +25,8 @@ struct RouteDiagnostics
   bool direct_path = false;
   bool goal_adjusted = false;
   double goal_adjustment_distance = 0.0;
+  double requested_start_clearance = 0.0;
+  double available_start_clearance = 0.0;
   std::string failure_stage;
   int raw_point_count = 0;
   int sparse_point_count = 0;
