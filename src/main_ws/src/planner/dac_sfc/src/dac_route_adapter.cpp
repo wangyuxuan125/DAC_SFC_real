@@ -180,8 +180,30 @@ bool DacRouteAdapter::build(const Eigen::Vector3d &start,
       diagnostics.failure_stage = "astar_empty";
       return false;
     }
-    raw_path.front() = start;
-    raw_path.back() = route_goal;
+
+    // Preserve the A* lattice endpoints.  Replacing them directly with the
+    // continuous start/goal can merge a short connector with the first or
+    // last grid edge and cut across a nearby occupied voxel.
+    if (!lineIsFree(start, raw_path.front(), options.clearance_radius))
+    {
+      diagnostics.failure_stage = "astar_start_connector";
+      return false;
+    }
+    if (!lineIsFree(raw_path.back(), route_goal, options.clearance_radius))
+    {
+      diagnostics.failure_stage = "astar_goal_connector";
+      return false;
+    }
+
+    if ((raw_path.front() - start).norm() > 1.0e-8)
+      raw_path.insert(raw_path.begin(), start);
+    else
+      raw_path.front() = start;
+
+    if ((raw_path.back() - route_goal).norm() > 1.0e-8)
+      raw_path.push_back(route_goal);
+    else
+      raw_path.back() = route_goal;
   }
   diagnostics.search_ms = std::chrono::duration<double, std::milli>(
                               std::chrono::steady_clock::now() - search_started)
