@@ -44,6 +44,9 @@ struct EngineOptions
 
   double guide_reference_speed_ratio = 0.5;
   double min_piece_time = 1.0e-3;
+  // GCOPTER subdivides long corridors so the quintic trajectory has enough
+  // internal degrees of freedom to remain inside narrow/turning polytopes.
+  double optimizer_piece_length = 0.75;
   double csgn_displacement_step = 0.01;
   double csgn_relative_damping = 1.0e-3;
   double csgn_proximity_power = 4.0;
@@ -98,6 +101,7 @@ struct EngineDiagnostics
   double trajectory_duration = 0.0;
   double max_velocity = 0.0;
   double max_acceleration = 0.0;
+  int optimizer_piece_count = 0;
 };
 
 struct EngineResult
