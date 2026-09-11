@@ -2,6 +2,7 @@
     <!-- Single-vehicle DAC-SFC real-flight entry point. -->
     <arg name="drone_id" default="0"/>
     <arg name="start_px4ctrl" default="true"/>
+    <arg name="start_odom_visualization" default="false"/>
 
     <!-- Real-flight interfaces. -->
     <arg name="odom_topic" default="/vins_fusion/imu_propagate"/>
@@ -21,6 +22,9 @@
 
     <!-- Validated DAC-SFC active-flight profile. -->
     <arg name="dac_sfc_shadow_only" default="false"/>
+    <!-- Production defaults: keep synchronous CSV I/O and RViz publishers off. -->
+    <arg name="dac_sfc_log_enabled" default="false"/>
+    <arg name="dac_sfc_visualization_enabled" default="false"/>
     <arg name="dac_sfc_fallback_to_ego" default="false"/>
     <arg name="dac_sfc_log_directory" default="/tmp/dac_sfc_deployment"/>
     <arg name="dac_sfc_max_corridor_retries" default="1"/>
@@ -59,6 +63,8 @@
     <include file="$(find ego_planner)/launch/include/advanced_param_exp.xml">
         <arg name="drone_id" value="$(arg drone_id)"/>
         <arg name="dac_sfc_shadow_only" value="$(arg dac_sfc_shadow_only)"/>
+        <arg name="dac_sfc_log_enabled" value="$(arg dac_sfc_log_enabled)"/>
+        <arg name="dac_sfc_visualization_enabled" value="$(arg dac_sfc_visualization_enabled)"/>
         <arg name="dac_sfc_fallback_to_ego" value="$(arg dac_sfc_fallback_to_ego)"/>
         <arg name="dac_sfc_log_directory" value="$(arg dac_sfc_log_directory)"/>
         <arg name="dac_sfc_max_corridor_retries" value="$(arg dac_sfc_max_corridor_retries)"/>
@@ -114,7 +120,8 @@
         <param name="traj_server/time_forward" value="1.0" type="double"/>
     </node>
 
-    <node pkg="odom_visualization" name="drone_$(arg drone_id)_odom_visualization"
+    <node if="$(arg start_odom_visualization)"
+          pkg="odom_visualization" name="drone_$(arg drone_id)_odom_visualization"
           type="odom_visualization" output="screen">
         <remap from="~odom" to="$(arg odom_topic)"/>
         <param name="color/a" value="1.0"/>
