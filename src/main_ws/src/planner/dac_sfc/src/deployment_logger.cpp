@@ -119,7 +119,8 @@ bool DeploymentLogger::append(const DeploymentRecord &record)
               "violation_x,violation_y,violation_z,optimizer_piece_count,"
               "final_dynamic_penalty_scale,terminal_velocity_aligned,"
               "terminal_velocity_alignment_angle_deg,"
-              "requested_start_clearance_m,available_start_clearance_m\n";
+              "requested_start_clearance_m,available_start_clearance_m,"
+              "terminal_velocity_speed_ratio\n";
   }
 
   output << std::setprecision(17)
@@ -160,7 +161,8 @@ bool DeploymentLogger::append(const DeploymentRecord &record)
          << record.engine.terminal_velocity_aligned << ','
          << record.engine.terminal_velocity_alignment_angle_deg << ','
          << record.route.requested_start_clearance << ','
-         << record.route.available_start_clearance << '\n';
+         << record.route.available_start_clearance << ','
+         << record.engine.terminal_velocity_speed_ratio << '\n';
   return static_cast<bool>(output);
 }
 
