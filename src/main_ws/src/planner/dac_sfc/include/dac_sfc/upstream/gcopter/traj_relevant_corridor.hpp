@@ -86,6 +86,12 @@ struct CompactCorridorDiagnostics
     int active_witness_rounds =
         0;
 
+    // Number of Active-Witness faces whose CSGN metric normal could not
+    // separate the complete voxel and was repaired with the exact Euclidean
+    // segment-to-AABB closest-point normal.
+    int euclidean_witness_fallbacks =
+        0;
+
     int generated_candidate_count =
         0;
 
@@ -168,6 +174,196 @@ using CandidateFaces =
         CandidateFace,
         Eigen::aligned_allocator<
             CandidateFace>>;
+
+// Exact closest residual from a line segment to an axis-aligned box.  The
+// breakpoints split [0,1] wherever one coordinate crosses a box face; squared
+// distance is one convex quadratic on every resulting interval.
+inline double closestSegmentAabbResidual(
+    const Eigen::Vector3d &start,
+    const Eigen::Vector3d &end,
+    const Eigen::Vector3d &lower,
+    const Eigen::Vector3d &upper,
+    Eigen::Vector3d &bestResidual)
+{
+    const Eigen::Vector3d direction =
+        end - start;
+
+    std::vector<double> breakpoints{
+        0.0,
+        1.0};
+
+    breakpoints.reserve(8);
+
+    for (int axis = 0;
+         axis < 3;
+         ++axis)
+    {
+        if (std::abs(direction(axis)) <=
+            1.0e-12)
+        {
+            continue;
+        }
+
+        const double lowerTime =
+            (lower(axis) - start(axis)) /
+            direction(axis);
+
+        const double upperTime =
+            (upper(axis) - start(axis)) /
+            direction(axis);
+
+        if (lowerTime > 0.0 &&
+            lowerTime < 1.0)
+        {
+            breakpoints.push_back(
+                lowerTime);
+        }
+
+        if (upperTime > 0.0 &&
+            upperTime < 1.0)
+        {
+            breakpoints.push_back(
+                upperTime);
+        }
+    }
+
+    std::sort(
+        breakpoints.begin(),
+        breakpoints.end());
+
+    breakpoints.erase(
+        std::unique(
+            breakpoints.begin(),
+            breakpoints.end(),
+            [](const double lhs,
+               const double rhs)
+            {
+                return std::abs(lhs - rhs) <=
+                       1.0e-12;
+            }),
+        breakpoints.end());
+
+    double bestSquaredDistance =
+        std::numeric_limits<double>::
+            infinity();
+
+    bestResidual.setZero();
+
+    const auto evaluate =
+        [&](const double interpolation)
+        {
+            const Eigen::Vector3d segmentPoint =
+                start +
+                interpolation *
+                    direction;
+
+            const Eigen::Vector3d boxPoint =
+                segmentPoint
+                    .cwiseMax(lower)
+                    .cwiseMin(upper);
+
+            const Eigen::Vector3d residual =
+                boxPoint -
+                segmentPoint;
+
+            const double squaredDistance =
+                residual.squaredNorm();
+
+            if (squaredDistance <
+                bestSquaredDistance)
+            {
+                bestSquaredDistance =
+                    squaredDistance;
+
+                bestResidual =
+                    residual;
+            }
+        };
+
+    for (std::size_t interval = 0;
+         interval + 1 <
+             breakpoints.size();
+         ++interval)
+    {
+        const double begin =
+            breakpoints[interval];
+
+        const double finish =
+            breakpoints[interval + 1];
+
+        const double middle =
+            0.5 *
+            (begin + finish);
+
+        const Eigen::Vector3d middlePoint =
+            start +
+            middle *
+                direction;
+
+        double quadratic =
+            0.0;
+
+        double linear =
+            0.0;
+
+        for (int axis = 0;
+             axis < 3;
+             ++axis)
+        {
+            double slope =
+                0.0;
+
+            double intercept =
+                0.0;
+
+            if (middlePoint(axis) <
+                lower(axis))
+            {
+                slope =
+                    -direction(axis);
+
+                intercept =
+                    lower(axis) -
+                    start(axis);
+            }
+            else if (middlePoint(axis) >
+                     upper(axis))
+            {
+                slope =
+                    -direction(axis);
+
+                intercept =
+                    upper(axis) -
+                    start(axis);
+            }
+
+            quadratic +=
+                slope * slope;
+
+            linear +=
+                slope * intercept;
+        }
+
+        evaluate(begin);
+        evaluate(finish);
+
+        if (quadratic >
+            1.0e-18)
+        {
+            const double stationary =
+                std::max(
+                    begin,
+                    std::min(
+                        finish,
+                        -linear /
+                            quadratic));
+
+            evaluate(stationary);
+        }
+    }
+
+    return bestSquaredDistance;
+}
 
 // ================================================================
 // Trajectory-relevant compact polytope for one seed segment [a,b].
@@ -1208,7 +1404,7 @@ inline bool buildCompactSegmentPolytope(
             normal /=
                 normalNorm;
 
-            const double protectedSupport =
+            double protectedSupport =
                 std::max(
                     normal.dot(a),
                     normal.dot(b)) +
@@ -1216,15 +1412,90 @@ inline bool buildCompactSegmentPolytope(
 
             // Nearest support of the complete occupied voxel along
             // the seed-to-obstacle normal.
-            const double obstacleSupport =
+            double obstacleSupport =
                 normal.dot(
                     witness) -
                 obstacleSupportRadius(
                     normal);
 
-            const double supportGap =
+            double supportGap =
                 obstacleSupport -
                 protectedSupport;
+
+            // A CSGN-metric projection is exact for a point witness, but its
+            // normal need not separate the complete voxel AABB.  If that
+            // normal fails, repair it with the exact Euclidean closest-point
+            // normal.  This preserves CSGN whenever geometrically feasible
+            // and rejects only a genuine capsule-to-voxel clearance failure.
+            if (!std::isfinite(
+                    supportGap) ||
+                supportGap <=
+                    2.0 * epsilon)
+            {
+                const Eigen::Vector3d voxelHalfExtent =
+                    Eigen::Vector3d::Constant(
+                        obstacleHalfExtent);
+
+                Eigen::Vector3d closestResidual;
+
+                const double euclideanDistanceSquared =
+                    closestSegmentAabbResidual(
+                        a,
+                        b,
+                        witness -
+                            voxelHalfExtent,
+                        witness +
+                            voxelHalfExtent,
+                        closestResidual);
+
+                if (std::isfinite(
+                        euclideanDistanceSquared) &&
+                    euclideanDistanceSquared >
+                        epsilon * epsilon)
+                {
+                    const Eigen::Vector3d euclideanNormal =
+                        closestResidual /
+                        std::sqrt(
+                            euclideanDistanceSquared);
+
+                    const double repairedProtectedSupport =
+                        std::max(
+                            euclideanNormal.dot(a),
+                            euclideanNormal.dot(b)) +
+                        overlapRadius;
+
+                    const double repairedObstacleSupport =
+                        euclideanNormal.dot(
+                            witness) -
+                        obstacleSupportRadius(
+                            euclideanNormal);
+
+                    const double repairedSupportGap =
+                        repairedObstacleSupport -
+                        repairedProtectedSupport;
+
+                    if (std::isfinite(
+                            repairedSupportGap) &&
+                        repairedSupportGap >
+                            2.0 * epsilon)
+                    {
+                        normal =
+                            euclideanNormal;
+
+                        protectedSupport =
+                            repairedProtectedSupport;
+
+                        obstacleSupport =
+                            repairedObstacleSupport;
+
+                        supportGap =
+                            repairedSupportGap;
+
+                        ++localDiagnostics
+                              .euclidean_witness_fallbacks;
+                    }
+                }
+            }
 
             if (!std::isfinite(
                     supportGap) ||
