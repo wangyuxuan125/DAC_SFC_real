@@ -683,7 +683,7 @@ namespace ego_planner
       return false;
     }
 
-    if (visualization_)
+    if (dac_sfc_visualization_enabled_ && visualization_)
     {
       visualization_->displayAStarList({raw_path}, 800);
       visualization_->displayInitPathList(route, 0.12, 90);
@@ -798,7 +798,7 @@ namespace ego_planner
         record.failure_stage = "trajectory_activation";
         record.pipeline_success = false;
       }
-      else if (visualization_)
+      else if (dac_sfc_visualization_enabled_ && visualization_)
       {
         Eigen::MatrixXd junctions(3, candidate.getPieceNum() + 1);
         for (int i = 0; i <= candidate.getPieceNum(); ++i)
