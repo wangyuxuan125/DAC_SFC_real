@@ -758,7 +758,15 @@ namespace ego_planner
                                  ? "inflated_map_collision_check"
                                  : trajectory_safety_failure;
     else if (!dynamic_limits_satisfied)
+    {
       record.failure_stage = "dynamic_limits";
+      ROS_WARN_STREAM("[DAC-SFC] Dynamic limits rejected trajectory:"
+                      << " max_vel=" << engine_result.diagnostics.max_velocity
+                      << " vel_limit=" << pp_.max_vel_ * tolerance
+                      << " max_acc="
+                      << engine_result.diagnostics.max_acceleration
+                      << " acc_limit=" << pp_.max_acc_ * tolerance);
+    }
 
     if (record.pipeline_success && !dac_sfc_shadow_only_)
     {
