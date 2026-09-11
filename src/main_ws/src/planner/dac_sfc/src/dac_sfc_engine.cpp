@@ -424,6 +424,51 @@ bool DacSfcEngine::plan(const std::vector<Eigen::Vector3d> &route,
 
   if (!corridor_satisfied)
   {
+    double terminal_endpoint_face_violation =
+        std::numeric_limits<double>::quiet_NaN();
+    double terminal_velocity_face_component =
+        std::numeric_limits<double>::quiet_NaN();
+    double route_tangent_face_component =
+        std::numeric_limits<double>::quiet_NaN();
+
+    const int violation_corridor =
+        result.diagnostics.violation_corridor;
+    const int violation_face =
+        result.diagnostics.violation_face;
+    if (violation_corridor >= 0 &&
+        violation_corridor <
+            static_cast<int>(result.corridors.size()) &&
+        violation_face >= 0 &&
+        violation_face <
+            result.corridors[violation_corridor].rows())
+    {
+      const Eigen::Vector4d face =
+          result.corridors[violation_corridor]
+              .row(violation_face)
+              .transpose();
+      const Eigen::Vector3d normal = face.head<3>();
+      const double normal_norm = normal.norm();
+      if (normal_norm > 1.0e-9)
+      {
+        terminal_endpoint_face_violation =
+            (normal.dot(terminal_pva.col(0)) + face(3)) /
+            normal_norm;
+        terminal_velocity_face_component =
+            normal.dot(terminal_pva.col(1)) /
+            normal_norm;
+
+        const Eigen::Vector3d route_delta =
+            route.back() - route[route.size() - 2];
+        const double route_delta_norm = route_delta.norm();
+        if (route_delta_norm > 1.0e-9)
+        {
+          route_tangent_face_component =
+              normal.dot(route_delta / route_delta_norm) /
+              normal_norm;
+        }
+      }
+    }
+
     std::cerr << "[DAC-SFC] GCOPTER warm corridor continuation exhausted attempts="
               << result.diagnostics.optimizer_attempts
               << " violation_m="
@@ -444,6 +489,16 @@ bool DacSfcEngine::plan(const std::vector<Eigen::Vector3d> &route,
               << result.diagnostics.max_velocity
               << " candidate_max_acc="
               << result.diagnostics.max_acceleration
+              << " terminal_point="
+              << terminal_pva.col(0).transpose()
+              << " terminal_velocity="
+              << terminal_pva.col(1).transpose()
+              << " endpoint_face_violation_m="
+              << terminal_endpoint_face_violation
+              << " terminal_velocity_face_component="
+              << terminal_velocity_face_component
+              << " route_tangent_face_component="
+              << route_tangent_face_component
               << std::endl;
     result.diagnostics.failure_stage = "corridor_violation";
     return false;
