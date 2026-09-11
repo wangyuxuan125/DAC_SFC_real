@@ -72,6 +72,8 @@ namespace ego_planner
     dac_route_options_.clearance_radius = dac_engine_options_.overlap_radius;
     nh.param("manager/dac_sfc/map_boundary_margin", dac_engine_options_.map_boundary_margin, 0.02);
     nh.param("manager/dac_sfc/max_final_corridor_violation", dac_engine_options_.max_final_corridor_violation, 0.02);
+    nh.param("manager/dac_sfc/max_corridor_retries", dac_engine_options_.max_corridor_retries, 2);
+    nh.param("manager/dac_sfc/corridor_penalty_scale", dac_engine_options_.corridor_penalty_scale, 10.0);
 
     bool dac_log_enabled = true;
     std::string dac_log_directory;
