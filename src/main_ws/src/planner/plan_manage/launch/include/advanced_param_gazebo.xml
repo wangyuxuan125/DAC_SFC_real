@@ -43,6 +43,7 @@
     <arg name="dac_sfc_acceleration_weight" default="10000.0"/>
     <arg name="dac_sfc_optimizer_piece_length" default="0.75"/>
     <arg name="dac_sfc_align_terminal_velocity_with_route" default="true"/>
+    <arg name="dac_sfc_overlap_radius" default="0.04"/>
     <!-- main node -->
     <!-- <node pkg="ego_planner" name="ego_planner_node" type="ego_planner_node" output="screen" launch-prefix="valgrind"> -->
     <node pkg="ego_planner" name="drone_$(arg drone_id)_ego_planner_node" type="ego_planner_node" output="screen">
@@ -183,7 +184,7 @@
         <param name="manager/dac_sfc/align_terminal_velocity_with_route" value="$(arg dac_sfc_align_terminal_velocity_with_route)" type="bool"/>
         <param name="manager/dac_sfc/max_segment_length" value="1.0" type="double"/>
         <param name="manager/dac_sfc/max_extra_radius" value="1.0" type="double"/>
-        <param name="manager/dac_sfc/overlap_radius" value="0.04" type="double"/>
+        <param name="manager/dac_sfc/overlap_radius" value="$(arg dac_sfc_overlap_radius)" type="double"/>
         <param name="manager/dac_sfc/quadrature_resolution" value="16" type="int"/>
         <param name="manager/dac_sfc/vehicle_mass" value="0.61" type="double"/>
         <param name="manager/dac_sfc/max_body_rate" value="2.1" type="double"/>
