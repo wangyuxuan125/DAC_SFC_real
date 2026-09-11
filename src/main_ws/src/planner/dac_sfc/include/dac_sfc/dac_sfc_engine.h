@@ -56,6 +56,10 @@ struct EngineOptions
   // during face generation, set cover, and final safety verification.
   double obstacle_voxel_size = 0.0;
   double max_final_corridor_violation = 0.02;
+  // Retry GCOPTER with a stronger position/corridor penalty when the
+  // optimized trajectory exceeds the verified corridor.
+  int max_corridor_retries = 2;
+  double corridor_penalty_scale = 10.0;
 };
 
 struct EngineDiagnostics
@@ -81,6 +85,8 @@ struct EngineDiagnostics
   double max_corridor_anisotropy = 1.0;
   double final_cost = 0.0;
   double final_corridor_violation = 0.0;
+  int optimizer_attempts = 0;
+  double final_position_weight = 0.0;
   double trajectory_duration = 0.0;
   double max_velocity = 0.0;
   double max_acceleration = 0.0;
