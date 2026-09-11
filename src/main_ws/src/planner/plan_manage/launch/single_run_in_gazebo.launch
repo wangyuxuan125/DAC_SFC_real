@@ -9,6 +9,7 @@
     <arg name="dac_sfc_corridor_penalty_scale" default="10.0"/>
     <arg name="dac_sfc_max_final_corridor_violation" default="0.002"/>
     <arg name="dac_sfc_acceleration_weight" default="10000.0"/>
+    <arg name="dac_sfc_optimizer_piece_length" default="0.75"/>
     <arg name="max_vel" default="1.5"/>
     <arg name="max_acc" default="3.0"/>
     <!-- Keep the local target inside the 5.5 m rolling-map half range. -->
@@ -53,6 +54,7 @@
         <arg name="dac_sfc_corridor_penalty_scale" value="$(arg dac_sfc_corridor_penalty_scale)"/>
         <arg name="dac_sfc_max_final_corridor_violation" value="$(arg dac_sfc_max_final_corridor_violation)"/>
         <arg name="dac_sfc_acceleration_weight" value="$(arg dac_sfc_acceleration_weight)"/>
+        <arg name="dac_sfc_optimizer_piece_length" value="$(arg dac_sfc_optimizer_piece_length)"/>
         <arg name="map_size_x_" value="$(arg map_size_x)"/>
         <arg name="map_size_y_" value="$(arg map_size_y)"/>
         <arg name="map_size_z_" value="$(arg map_size_z)"/>
