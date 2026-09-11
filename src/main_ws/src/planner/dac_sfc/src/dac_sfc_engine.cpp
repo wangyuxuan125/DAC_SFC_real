@@ -52,6 +52,10 @@ bool optionsAreValid(const EngineOptions &options)
          std::isfinite(options.acceleration_weight) &&
          options.acceleration_weight > 0.0 &&
          options.max_corridor_retries >= 0 &&
+         options.max_dynamic_retries >= 0 &&
+         options.max_optimizer_restarts >= 0 &&
+         std::isfinite(options.dynamic_limit_tolerance) &&
+         options.dynamic_limit_tolerance >= 0.0 &&
          std::isfinite(options.corridor_penalty_scale) &&
          options.corridor_penalty_scale > 1.0 &&
          std::isfinite(options.dynamic_penalty_scale) &&
