@@ -31,7 +31,8 @@ double millisecondsSince(const Clock::time_point &start)
 
 bool optionsAreValid(const EngineOptions &options)
 {
-  return options.max_velocity > 0.0 && options.max_body_rate > 0.0 &&
+  return options.max_velocity > 0.0 && options.max_acceleration > 0.0 &&
+         options.max_body_rate > 0.0 &&
          options.max_tilt_angle > 0.0 && options.min_thrust >= 0.0 &&
          options.max_thrust > options.min_thrust && options.vehicle_mass > 0.0 &&
          options.gravity > 0.0 && options.speed_smoothing > 0.0 &&
@@ -45,6 +46,8 @@ bool optionsAreValid(const EngineOptions &options)
          options.obstacle_voxel_size >= 0.0 &&
          std::isfinite(options.position_weight) &&
          options.position_weight > 0.0 &&
+         std::isfinite(options.acceleration_weight) &&
+         options.acceleration_weight > 0.0 &&
          options.max_corridor_retries >= 0 &&
          std::isfinite(options.corridor_penalty_scale) &&
          options.corridor_penalty_scale > 1.0;
@@ -118,9 +121,10 @@ bool DacSfcEngine::plan(const std::vector<Eigen::Vector3d> &route,
     }
   }
 
-  Eigen::VectorXd magnitude_bounds(5);
+  Eigen::VectorXd magnitude_bounds(6);
   magnitude_bounds << options.max_velocity, options.max_body_rate,
-      options.max_tilt_angle, options.min_thrust, options.max_thrust;
+      options.max_tilt_angle, options.min_thrust, options.max_thrust,
+      options.max_acceleration;
   Eigen::VectorXd physical_parameters(6);
   physical_parameters << options.vehicle_mass, options.gravity,
       options.horizontal_drag, options.vertical_drag, options.parasitic_drag,
@@ -263,9 +267,10 @@ bool DacSfcEngine::plan(const std::vector<Eigen::Vector3d> &route,
   result.diagnostics.geometry_evaluations_per_call =
       (options.quadrature_resolution + 1) * result.diagnostics.total_faces;
 
-  Eigen::VectorXd penalty_weights(5);
+  Eigen::VectorXd penalty_weights(6);
   penalty_weights << options.position_weight, options.velocity_weight,
-      options.body_rate_weight, options.tilt_weight, options.thrust_weight;
+      options.body_rate_weight, options.tilt_weight, options.thrust_weight,
+      options.acceleration_weight;
 
   gcopter::GCOPTER_PolytopeSFC optimizer;
   const Clock::time_point setup_started = Clock::now();
