@@ -6,7 +6,8 @@
     <arg name="dac_sfc_fallback_to_ego" default="true"/>
     <arg name="dac_sfc_log_directory" default="/tmp/dac_sfc_deployment"/>
     <arg name="dac_sfc_max_corridor_retries" default="2"/>
-    <arg name="dac_sfc_corridor_penalty_scale" default="10.0"/>
+    <arg name="dac_sfc_corridor_penalty_scale" default="100.0"/>
+    <arg name="dac_sfc_dynamic_penalty_scale" default="10.0"/>
     <arg name="dac_sfc_max_final_corridor_violation" default="0.002"/>
     <arg name="dac_sfc_acceleration_weight" default="10000.0"/>
     <arg name="dac_sfc_optimizer_piece_length" default="0.75"/>
@@ -52,6 +53,7 @@
         <arg name="dac_sfc_log_directory" value="$(arg dac_sfc_log_directory)"/>
         <arg name="dac_sfc_max_corridor_retries" value="$(arg dac_sfc_max_corridor_retries)"/>
         <arg name="dac_sfc_corridor_penalty_scale" value="$(arg dac_sfc_corridor_penalty_scale)"/>
+        <arg name="dac_sfc_dynamic_penalty_scale" value="$(arg dac_sfc_dynamic_penalty_scale)"/>
         <arg name="dac_sfc_max_final_corridor_violation" value="$(arg dac_sfc_max_final_corridor_violation)"/>
         <arg name="dac_sfc_acceleration_weight" value="$(arg dac_sfc_acceleration_weight)"/>
         <arg name="dac_sfc_optimizer_piece_length" value="$(arg dac_sfc_optimizer_piece_length)"/>
