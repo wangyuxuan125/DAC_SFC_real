@@ -113,6 +113,30 @@ def main():
         for stage, count in failures.most_common():
             print(f"  {stage}: {count}")
 
+    start_clearance_failures = [
+        row for row in rows
+        if (not truthy(row["pipeline_success"]) and
+            row.get("failure_stage") == "route_start_clearance")
+    ]
+    if start_clearance_failures:
+        print("route_start_clearance_metrics:")
+        for field in (
+                "requested_start_clearance_m",
+                "available_start_clearance_m"):
+            values = []
+            for row in start_clearance_failures:
+                try:
+                    value = float(row.get(field, ""))
+                except (TypeError, ValueError):
+                    continue
+                if math.isfinite(value):
+                    values.append(value)
+            if values:
+                print(
+                    f"  {field}: median={statistics.median(values):.6g}, "
+                    f"min={min(values):.6g}, max={max(values):.6g}"
+                )
+
     retried = []
     for row in rows:
         try:
