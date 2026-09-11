@@ -32,6 +32,7 @@ NUMERIC_FIELDS = (
     "max_acceleration_mps2",
     "optimizer_attempts",
     "final_position_weight",
+    "optimizer_piece_count",
 )
 
 
