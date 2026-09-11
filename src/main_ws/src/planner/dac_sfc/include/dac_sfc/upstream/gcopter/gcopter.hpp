@@ -307,8 +307,9 @@ namespace gcopter
         Eigen::VectorXd penaltyWt;
 
         // Baseline penalty weights supplied by setup().
-        // Continuation scales only the corridor-position term
-        // relative to this immutable reference.
+        // Continuation scales the complete constraint group relative to this
+        // immutable reference. Keeping their ratios fixed prevents a stronger
+        // corridor penalty from trading safety for dynamic infeasibility.
         Eigen::VectorXd basePenaltyWt;
 
         Eigen::VectorXd physicalPm;
@@ -662,8 +663,8 @@ namespace gcopter
             }
         }
 
-        // magnitudeBounds = [v_max, omg_max, theta_max, thrust_min, thrust_max]^T
-        // penaltyWeights = [pos_weight, vel_weight, omg_weight, theta_weight, thrust_weight]^T
+        // magnitudeBounds = [v_max, omg_max, theta_max, thrust_min, thrust_max, acc_max]^T
+        // penaltyWeights = [pos_weight, vel_weight, omg_weight, theta_weight, thrust_weight, acc_weight]^T
         // physicalParams = [vehicle_mass, gravitational_acceleration, horitonral_drag_coeff,
         //                   vertical_drag_coeff, parasitic_drag_coeff, speed_smooth_factor]^T
         static inline void attachPenaltyFunctional(const Eigen::VectorXd &T,
@@ -685,12 +686,20 @@ namespace gcopter
             const double thrustMean = 0.5 * (magnitudeBounds(3) + magnitudeBounds(4));
             const double thrustRadi = 0.5 * fabs(magnitudeBounds(4) - magnitudeBounds(3));
             const double thrustSqrRadi = thrustRadi * thrustRadi;
+            const bool accelerationPenaltyEnabled =
+                magnitudeBounds.size() > 5 && penaltyWeights.size() > 5;
+            const double accSqrMax =
+                accelerationPenaltyEnabled
+                    ? magnitudeBounds(5) * magnitudeBounds(5)
+                    : INFINITY;
 
             const double weightPos = penaltyWeights(0);
             const double weightVel = penaltyWeights(1);
             const double weightOmg = penaltyWeights(2);
             const double weightTheta = penaltyWeights(3);
             const double weightThrust = penaltyWeights(4);
+            const double weightAcc =
+                accelerationPenaltyEnabled ? penaltyWeights(5) : 0.0;
 
             Eigen::Vector3d pos, vel, acc, jer, sna;
             Eigen::Vector3d totalGradPos, totalGradVel, totalGradAcc, totalGradJer;
@@ -700,16 +709,16 @@ namespace gcopter
             Eigen::Vector3d omg;
             double gradThr;
             Eigen::Vector4d gradQuat;
-            Eigen::Vector3d gradPos, gradVel, gradOmg;
+            Eigen::Vector3d gradPos, gradVel, gradAcc, gradOmg;
 
             double step, alpha;
             double s1, s2, s3, s4, s5;
             Eigen::Matrix<double, 6, 1> beta0, beta1, beta2, beta3, beta4;
             Eigen::Vector3d outerNormal;
             int K, L;
-            double violaPos, violaVel, violaOmg, violaTheta, violaThrust;
-            double violaPosPenaD, violaVelPenaD, violaOmgPenaD, violaThetaPenaD, violaThrustPenaD;
-            double violaPosPena, violaVelPena, violaOmgPena, violaThetaPena, violaThrustPena;
+            double violaPos, violaVel, violaAcc, violaOmg, violaTheta, violaThrust;
+            double violaPosPenaD, violaVelPenaD, violaAccPenaD, violaOmgPenaD, violaThetaPenaD, violaThrustPenaD;
+            double violaPosPena, violaVelPena, violaAccPena, violaOmgPena, violaThetaPena, violaThrustPena;
             double node, pena;
 
             const int pieceNum = T.size();
@@ -739,6 +748,7 @@ namespace gcopter
                     flatMap.forward(vel, acc, jer, 0.0, 0.0, thr, quat, omg);
 
                     violaVel = vel.squaredNorm() - velSqrMax;
+                    violaAcc = acc.squaredNorm() - accSqrMax;
                     violaOmg = omg.squaredNorm() - omgSqrMax;
                     cos_theta = 1.0 - 2.0 * (quat(1) * quat(1) + quat(2) * quat(2));
                     violaTheta = acos(cos_theta) - thetaMax;
@@ -746,7 +756,7 @@ namespace gcopter
 
                     gradThr = 0.0;
                     gradQuat.setZero();
-                    gradPos.setZero(), gradVel.setZero(), gradOmg.setZero();
+                    gradPos.setZero(), gradVel.setZero(), gradAcc.setZero(), gradOmg.setZero();
                     pena = 0.0;
 
                     L = hIdx(i);
@@ -766,6 +776,13 @@ namespace gcopter
                     {
                         gradVel += weightVel * violaVelPenaD * 2.0 * vel;
                         pena += weightVel * violaVelPena;
+                    }
+
+                    if (accelerationPenaltyEnabled &&
+                        smoothedL1(violaAcc, smoothFactor, violaAccPena, violaAccPenaD))
+                    {
+                        gradAcc += weightAcc * violaAccPenaD * 2.0 * acc;
+                        pena += weightAcc * violaAccPena;
                     }
 
                     if (smoothedL1(violaOmg, smoothFactor, violaOmgPena, violaOmgPenaD))
@@ -791,6 +808,7 @@ namespace gcopter
                     flatMap.backward(gradPos, gradVel, gradThr, gradQuat, gradOmg,
                                      totalGradPos, totalGradVel, totalGradAcc, totalGradJer,
                                      totalGradPsi, totalGradPsiD);
+                    totalGradAcc += gradAcc;
 
                     node = (j == 0 || j == integralResolution) ? 0.5 : 1.0;
                     alpha = j * integralFrac;
@@ -3880,8 +3898,8 @@ namespace gcopter
         }
 
     public:
-        // magnitudeBounds = [v_max, omg_max, theta_max, thrust_min, thrust_max]^T
-        // penaltyWeights = [pos_weight, vel_weight, omg_weight, theta_weight, thrust_weight]^T
+        // magnitudeBounds = [v_max, omg_max, theta_max, thrust_min, thrust_max, acc_max]^T
+        // penaltyWeights = [pos_weight, vel_weight, omg_weight, theta_weight, thrust_weight, acc_weight]^T
         // physicalParams = [vehicle_mass, gravitational_acceleration, horitonral_drag_coeff,
         //                   vertical_drag_coeff, parasitic_drag_coeff, speed_smooth_factor]^T
         inline bool setup(const double &timeWeight,
@@ -4167,16 +4185,12 @@ namespace gcopter
                     penaltyWt;
 
             // --------------------------------------------------------
-            // Scale ONLY the corridor-position penalty.
-            //
-            // All dynamic penalties remain identical to the original
-            // planning problem.
+            // Scale the complete constraint group while preserving the
+            // relative balance between corridor, velocity, acceleration,
+            // body-rate, tilt and thrust penalties.
             // --------------------------------------------------------
             penaltyWt =
-                basePenaltyWt;
-
-            penaltyWt(0) =
-                basePenaltyWt(0) *
+                basePenaltyWt *
                 corridorPenaltyScale;
 
             // --------------------------------------------------------
