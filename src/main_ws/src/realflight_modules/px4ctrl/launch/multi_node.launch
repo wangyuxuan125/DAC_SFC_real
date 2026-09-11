@@ -1,11 +1,25 @@
 <launch>
-    <!-- <group ns="iris_0"> -->
-        <node pkg="px4ctrl" type="px4ctrl_node" name="px4ctrl_0" output="screen">
-            <!-- <remap from="~odom" to="/vicon_imu_ekf_odom" /> -->
-            <!-- <remap from="odom" to="mavros/local_position/odom" /> -->
-            <remap from="~odom" to="/vins_fusion/imu_propagate" />
-            <remap from="~cmd" to="/iris_0/position_cmd" />
-            <rosparam command="load" file="$(find px4ctrl)/config/ctrl_param_fpv.yaml" />
-        </node>
-    <!-- </group> -->
+    <!-- Real-flight defaults; every topic can be overridden by the caller. -->
+    <arg name="odom_topic" default="/vins_fusion/imu_propagate"/>
+    <arg name="cmd_topic" default="/iris_0/position_cmd"/>
+    <arg name="takeoff_land_topic" default="/iris_0/takeoff_land"/>
+    <arg name="mavros_ns" default="/mavros"/>
+
+    <node pkg="px4ctrl" type="px4ctrl_node" name="px4ctrl_0" output="screen">
+        <!-- PX4Ctrlnode.cpp subscribes to relative odom/cmd names, not private names. -->
+        <remap from="odom" to="$(arg odom_topic)"/>
+        <remap from="cmd" to="$(arg cmd_topic)"/>
+        <remap from="takeoff_land" to="$(arg takeoff_land_topic)"/>
+
+        <remap from="mavros/state" to="$(arg mavros_ns)/state"/>
+        <remap from="mavros/extended_state" to="$(arg mavros_ns)/extended_state"/>
+        <remap from="mavros/imu/data" to="$(arg mavros_ns)/imu/data"/>
+        <remap from="mavros/rc/in" to="$(arg mavros_ns)/rc/in"/>
+        <remap from="mavros/setpoint_raw/attitude" to="$(arg mavros_ns)/setpoint_raw/attitude"/>
+        <remap from="mavros/set_mode" to="$(arg mavros_ns)/set_mode"/>
+        <remap from="mavros/cmd/arming" to="$(arg mavros_ns)/cmd/arming"/>
+        <remap from="mavros/cmd/command" to="$(arg mavros_ns)/cmd/command"/>
+
+        <rosparam command="load" file="$(find px4ctrl)/config/ctrl_param_fpv.yaml"/>
+    </node>
 </launch>
