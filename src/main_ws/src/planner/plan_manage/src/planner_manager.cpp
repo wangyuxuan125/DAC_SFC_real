@@ -823,6 +823,8 @@ namespace ego_planner
                     << record.engine.terminal_velocity_aligned
                     << " terminal_vel_angle_deg="
                     << record.engine.terminal_velocity_alignment_angle_deg
+                    << " terminal_vel_speed_ratio="
+                    << record.engine.terminal_velocity_speed_ratio
                     << " faces=" << record.engine.total_faces
                     << " geo/call=" << record.engine.geometry_evaluations_per_call
                     << " total_ms=" << record.total_ms
