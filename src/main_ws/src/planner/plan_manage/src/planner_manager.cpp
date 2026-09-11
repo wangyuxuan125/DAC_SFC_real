@@ -812,6 +812,7 @@ namespace ego_planner
                     << " goal_adjusted=" << record.route.goal_adjusted
                     << " goal_shift_m=" << record.route.goal_adjustment_distance
                     << " corridors=" << record.engine.corridor_count
+                    << " opt_pieces=" << record.engine.optimizer_piece_count
                     << " faces=" << record.engine.total_faces
                     << " geo/call=" << record.engine.geometry_evaluations_per_call
                     << " total_ms=" << record.total_ms
