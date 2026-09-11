@@ -116,7 +116,7 @@ bool DeploymentLogger::append(const DeploymentRecord &record)
               "optimizer_attempts,final_position_weight,"
               "violation_piece,violation_corridor,violation_face,"
               "violation_sample,violation_piece_time_s,"
-              "violation_x,violation_y,violation_z\n";
+              "violation_x,violation_y,violation_z,optimizer_piece_count\n";
   }
 
   output << std::setprecision(17)
@@ -151,7 +151,8 @@ bool DeploymentLogger::append(const DeploymentRecord &record)
          << record.engine.violation_time << ','
          << record.engine.violation_position.x() << ','
          << record.engine.violation_position.y() << ','
-         << record.engine.violation_position.z() << '\n';
+         << record.engine.violation_position.z() << ','
+         << record.engine.optimizer_piece_count << '\n';
   return static_cast<bool>(output);
 }
 
