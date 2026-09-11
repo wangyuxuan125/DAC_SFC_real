@@ -186,11 +186,19 @@ bool DacRouteAdapter::build(const Eigen::Vector3d &start,
     // last grid edge and cut across a nearby occupied voxel.
     if (!lineIsFree(start, raw_path.front(), options.clearance_radius))
     {
+      ROS_WARN_STREAM("[DAC-SFC] A* start connector lacks clearance: "
+                      << start.transpose() << " -> "
+                      << raw_path.front().transpose()
+                      << " clearance_m=" << options.clearance_radius);
       diagnostics.failure_stage = "astar_start_connector";
       return false;
     }
     if (!lineIsFree(raw_path.back(), route_goal, options.clearance_radius))
     {
+      ROS_WARN_STREAM("[DAC-SFC] A* goal connector lacks clearance: "
+                      << raw_path.back().transpose() << " -> "
+                      << route_goal.transpose()
+                      << " clearance_m=" << options.clearance_radius);
       diagnostics.failure_stage = "astar_goal_connector";
       return false;
     }
@@ -260,6 +268,11 @@ bool DacRouteAdapter::build(const Eigen::Vector3d &start,
       diagnostics.shortcut_ms = std::chrono::duration<double, std::milli>(
                                     std::chrono::steady_clock::now() - shortcut_started)
                                     .count();
+      ROS_WARN_STREAM("[DAC-SFC] Shortcut cannot reach the next raw point: index="
+                      << current << "/" << raw_path.size()
+                      << " from=" << raw_path[current].transpose()
+                      << " next=" << raw_path[current + 1].transpose()
+                      << " clearance_m=" << options.clearance_radius);
       diagnostics.failure_stage = "shortcut_visibility";
       return false;
     }
