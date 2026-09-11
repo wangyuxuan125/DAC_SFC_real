@@ -37,7 +37,10 @@ bool optionsAreValid(const EngineOptions &options)
          options.max_thrust > options.min_thrust && options.vehicle_mass > 0.0 &&
          options.gravity > 0.0 && options.speed_smoothing > 0.0 &&
          options.quadrature_resolution > 0 && options.guide_reference_speed_ratio > 0.0 &&
-         options.min_piece_time > 0.0 && options.csgn_displacement_step > 0.0 &&
+         options.min_piece_time > 0.0 &&
+         std::isfinite(options.optimizer_piece_length) &&
+         options.optimizer_piece_length > 0.0 &&
+         options.csgn_displacement_step > 0.0 &&
          options.csgn_relative_damping > 0.0 && options.csgn_proximity_power >= 0.0 &&
          options.max_corridor_anisotropy >= 1.0 && options.max_extra_radius > 0.0 &&
          options.min_extra_ratio >= 0.0 && options.min_extra_ratio <= 1.0 &&
@@ -276,7 +279,7 @@ bool DacSfcEngine::plan(const std::vector<Eigen::Vector3d> &route,
   const Clock::time_point setup_started = Clock::now();
   const bool setup_success = optimizer.setup(
       options.time_weight, initial_pva, terminal_pva, result.corridors,
-      std::numeric_limits<double>::infinity(), options.smoothing_epsilon,
+      options.optimizer_piece_length, options.smoothing_epsilon,
       options.quadrature_resolution, magnitude_bounds, penalty_weights,
       physical_parameters);
   result.diagnostics.optimizer_setup_ms = millisecondsSince(setup_started);
@@ -318,6 +321,9 @@ bool DacSfcEngine::plan(const std::vector<Eigen::Vector3d> &route,
                        : "gcopter_corridor_continuation";
       return false;
     }
+
+    result.diagnostics.optimizer_piece_count =
+        candidate_trajectory.getPieceNum();
 
     const auto &final_corridor = optimizer.getFinalCorridorDiagnostics();
     result.diagnostics.final_corridor_violation =
