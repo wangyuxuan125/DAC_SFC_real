@@ -40,6 +40,8 @@ namespace ego_planner
 
     dac_engine_options_.max_velocity = pp_.max_vel_;
     dac_engine_options_.max_acceleration = pp_.max_acc_;
+    dac_engine_options_.dynamic_limit_tolerance =
+        std::max(0.0, pp_.feasibility_tolerance_);
     nh.param("manager/dac_sfc/max_body_rate", dac_engine_options_.max_body_rate, 2.1);
     nh.param("manager/dac_sfc/max_tilt_angle", dac_engine_options_.max_tilt_angle, 1.05);
     nh.param("manager/dac_sfc/min_thrust", dac_engine_options_.min_thrust, 2.0);
@@ -81,6 +83,10 @@ namespace ego_planner
     nh.param("manager/dac_sfc/max_final_corridor_violation",
              dac_engine_options_.max_final_corridor_violation, 0.002);
     nh.param("manager/dac_sfc/max_corridor_retries", dac_engine_options_.max_corridor_retries, 2);
+    nh.param("manager/dac_sfc/max_dynamic_retries",
+             dac_engine_options_.max_dynamic_retries, 2);
+    nh.param("manager/dac_sfc/max_optimizer_restarts",
+             dac_engine_options_.max_optimizer_restarts, 1);
     nh.param("manager/dac_sfc/corridor_penalty_scale",
              dac_engine_options_.corridor_penalty_scale, 100.0);
     nh.param("manager/dac_sfc/dynamic_penalty_scale",
@@ -819,6 +825,10 @@ namespace ego_planner
                     << " corridors=" << record.engine.corridor_count
                     << " opt_pieces=" << record.engine.optimizer_piece_count
                     << " dyn_scale=" << record.engine.final_dynamic_penalty_scale
+                    << " dyn_retries="
+                    << record.engine.dynamic_limit_retries
+                    << " cold_restarts="
+                    << record.engine.optimizer_cold_restarts
                     << " terminal_vel_aligned="
                     << record.engine.terminal_velocity_aligned
                     << " terminal_vel_angle_deg="
