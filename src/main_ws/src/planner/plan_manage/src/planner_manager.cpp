@@ -62,6 +62,8 @@ namespace ego_planner
     nh.param("manager/dac_sfc/quadrature_resolution", dac_engine_options_.quadrature_resolution, 16);
     nh.param("manager/dac_sfc/optimizer_piece_length",
              dac_engine_options_.optimizer_piece_length, 0.75);
+    nh.param("manager/dac_sfc/align_terminal_velocity_with_route",
+             dac_engine_options_.align_terminal_velocity_with_route, true);
     nh.param("manager/dac_sfc/relative_cost_tolerance", dac_engine_options_.relative_cost_tolerance, 1.0e-5);
     nh.param("manager/dac_sfc/guide_reference_speed_ratio", dac_engine_options_.guide_reference_speed_ratio, 0.5);
     nh.param("manager/dac_sfc/csgn_displacement_step", dac_engine_options_.csgn_displacement_step, 0.01);
@@ -817,6 +819,10 @@ namespace ego_planner
                     << " corridors=" << record.engine.corridor_count
                     << " opt_pieces=" << record.engine.optimizer_piece_count
                     << " dyn_scale=" << record.engine.final_dynamic_penalty_scale
+                    << " terminal_vel_aligned="
+                    << record.engine.terminal_velocity_aligned
+                    << " terminal_vel_angle_deg="
+                    << record.engine.terminal_velocity_alignment_angle_deg
                     << " faces=" << record.engine.total_faces
                     << " geo/call=" << record.engine.geometry_evaluations_per_call
                     << " total_ms=" << record.total_ms
