@@ -85,6 +85,12 @@ struct EngineDiagnostics
   double max_corridor_anisotropy = 1.0;
   double final_cost = 0.0;
   double final_corridor_violation = 0.0;
+  int violation_piece = -1;
+  int violation_corridor = -1;
+  int violation_face = -1;
+  int violation_sample = -1;
+  double violation_time = 0.0;
+  Eigen::Vector3d violation_position = Eigen::Vector3d::Zero();
   int optimizer_attempts = 0;
   double final_position_weight = 0.0;
   double trajectory_duration = 0.0;
