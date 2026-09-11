@@ -35,6 +35,7 @@ NUMERIC_FIELDS = (
     "optimizer_piece_count",
     "final_dynamic_penalty_scale",
     "terminal_velocity_alignment_angle_deg",
+    "terminal_velocity_speed_ratio",
 )
 
 
