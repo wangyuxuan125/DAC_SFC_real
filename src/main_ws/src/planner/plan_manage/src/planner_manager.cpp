@@ -79,7 +79,10 @@ namespace ego_planner
     nh.param("manager/dac_sfc/max_final_corridor_violation",
              dac_engine_options_.max_final_corridor_violation, 0.002);
     nh.param("manager/dac_sfc/max_corridor_retries", dac_engine_options_.max_corridor_retries, 2);
-    nh.param("manager/dac_sfc/corridor_penalty_scale", dac_engine_options_.corridor_penalty_scale, 10.0);
+    nh.param("manager/dac_sfc/corridor_penalty_scale",
+             dac_engine_options_.corridor_penalty_scale, 100.0);
+    nh.param("manager/dac_sfc/dynamic_penalty_scale",
+             dac_engine_options_.dynamic_penalty_scale, 10.0);
 
     bool dac_log_enabled = true;
     std::string dac_log_directory;
@@ -813,6 +816,7 @@ namespace ego_planner
                     << " goal_shift_m=" << record.route.goal_adjustment_distance
                     << " corridors=" << record.engine.corridor_count
                     << " opt_pieces=" << record.engine.optimizer_piece_count
+                    << " dyn_scale=" << record.engine.final_dynamic_penalty_scale
                     << " faces=" << record.engine.total_faces
                     << " geo/call=" << record.engine.geometry_evaluations_per_call
                     << " total_ms=" << record.total_ms
