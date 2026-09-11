@@ -34,6 +34,8 @@
     <arg name="use_multitopology_trajs"/>
     <arg name="drone_id"/>
     <arg name="dac_sfc_shadow_only" default="false"/>
+    <arg name="dac_sfc_log_enabled" default="false"/>
+    <arg name="dac_sfc_visualization_enabled" default="false"/>
     <arg name="dac_sfc_fallback_to_ego" default="false"/>
     <arg name="dac_sfc_log_directory" default="/tmp/dac_sfc_deployment"/>
     <arg name="dac_sfc_max_corridor_retries" default="1"/>
@@ -172,9 +174,9 @@
         <param name="manager/dac_sfc/shadow_only" value="$(arg dac_sfc_shadow_only)" type="bool"/>
         <param name="manager/dac_sfc/fallback_to_ego" value="$(arg dac_sfc_fallback_to_ego)" type="bool"/>
         <param name="manager/dac_sfc/data_source" value="onboard" type="string"/>
-        <param name="manager/dac_sfc/visualization_enabled" value="true" type="bool"/>
+        <param name="manager/dac_sfc/visualization_enabled" value="$(arg dac_sfc_visualization_enabled)" type="bool"/>
         <param name="manager/dac_sfc/visualization_frame" value="world" type="string"/>
-        <param name="manager/dac_sfc/log_enabled" value="true" type="bool"/>
+        <param name="manager/dac_sfc/log_enabled" value="$(arg dac_sfc_log_enabled)" type="bool"/>
         <param name="manager/dac_sfc/log_directory" value="$(arg dac_sfc_log_directory)" type="string"/>
         <param name="manager/dac_sfc/max_corridor_retries" value="$(arg dac_sfc_max_corridor_retries)" type="int"/>
         <param name="manager/dac_sfc/max_dynamic_retries" value="$(arg dac_sfc_max_dynamic_retries)" type="int"/>
