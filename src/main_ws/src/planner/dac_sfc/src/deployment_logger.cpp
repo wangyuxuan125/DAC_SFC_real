@@ -113,7 +113,10 @@ bool DeploymentLogger::append(const DeploymentRecord &record)
               "redundancy_removed,valid_csgn_metrics,mean_corridor_anisotropy,"
               "max_corridor_anisotropy,final_cost,final_corridor_violation_m,"
               "trajectory_duration_s,max_velocity_mps,max_acceleration_mps2,"
-              "optimizer_attempts,final_position_weight\n";
+              "optimizer_attempts,final_position_weight,"
+              "violation_piece,violation_corridor,violation_face,"
+              "violation_sample,violation_piece_time_s,"
+              "violation_x,violation_y,violation_z\n";
   }
 
   output << std::setprecision(17)
@@ -140,7 +143,15 @@ bool DeploymentLogger::append(const DeploymentRecord &record)
          << record.engine.trajectory_duration << ',' << record.engine.max_velocity << ','
          << record.engine.max_acceleration << ','
          << record.engine.optimizer_attempts << ','
-         << record.engine.final_position_weight << '\n';
+         << record.engine.final_position_weight << ','
+         << record.engine.violation_piece << ','
+         << record.engine.violation_corridor << ','
+         << record.engine.violation_face << ','
+         << record.engine.violation_sample << ','
+         << record.engine.violation_time << ','
+         << record.engine.violation_position.x() << ','
+         << record.engine.violation_position.y() << ','
+         << record.engine.violation_position.z() << '\n';
   return static_cast<bool>(output);
 }
 
