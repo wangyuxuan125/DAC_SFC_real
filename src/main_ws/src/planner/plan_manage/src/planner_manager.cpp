@@ -60,6 +60,8 @@ namespace ego_planner
     nh.param("manager/dac_sfc/thrust_weight", dac_engine_options_.thrust_weight, 1.0e5);
     nh.param("manager/dac_sfc/smoothing_epsilon", dac_engine_options_.smoothing_epsilon, 1.0e-2);
     nh.param("manager/dac_sfc/quadrature_resolution", dac_engine_options_.quadrature_resolution, 16);
+    nh.param("manager/dac_sfc/optimizer_piece_length",
+             dac_engine_options_.optimizer_piece_length, 0.75);
     nh.param("manager/dac_sfc/relative_cost_tolerance", dac_engine_options_.relative_cost_tolerance, 1.0e-5);
     nh.param("manager/dac_sfc/guide_reference_speed_ratio", dac_engine_options_.guide_reference_speed_ratio, 0.5);
     nh.param("manager/dac_sfc/csgn_displacement_step", dac_engine_options_.csgn_displacement_step, 0.01);
