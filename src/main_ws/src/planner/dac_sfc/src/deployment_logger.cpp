@@ -117,7 +117,8 @@ bool DeploymentLogger::append(const DeploymentRecord &record)
               "violation_piece,violation_corridor,violation_face,"
               "violation_sample,violation_piece_time_s,"
               "violation_x,violation_y,violation_z,optimizer_piece_count,"
-              "final_dynamic_penalty_scale\n";
+              "final_dynamic_penalty_scale,terminal_velocity_aligned,"
+              "terminal_velocity_alignment_angle_deg\n";
   }
 
   output << std::setprecision(17)
@@ -154,7 +155,9 @@ bool DeploymentLogger::append(const DeploymentRecord &record)
          << record.engine.violation_position.y() << ','
          << record.engine.violation_position.z() << ','
          << record.engine.optimizer_piece_count << ','
-         << record.engine.final_dynamic_penalty_scale << '\n';
+         << record.engine.final_dynamic_penalty_scale << ','
+         << record.engine.terminal_velocity_aligned << ','
+         << record.engine.terminal_velocity_alignment_angle_deg << '\n';
   return static_cast<bool>(output);
 }
 
