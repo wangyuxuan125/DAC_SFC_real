@@ -120,7 +120,8 @@ bool DeploymentLogger::append(const DeploymentRecord &record)
               "final_dynamic_penalty_scale,terminal_velocity_aligned,"
               "terminal_velocity_alignment_angle_deg,"
               "requested_start_clearance_m,available_start_clearance_m,"
-              "terminal_velocity_speed_ratio\n";
+              "terminal_velocity_speed_ratio,dynamic_limit_retries,"
+              "optimizer_cold_restarts\n";
   }
 
   output << std::setprecision(17)
@@ -162,7 +163,9 @@ bool DeploymentLogger::append(const DeploymentRecord &record)
          << record.engine.terminal_velocity_alignment_angle_deg << ','
          << record.route.requested_start_clearance << ','
          << record.route.available_start_clearance << ','
-         << record.engine.terminal_velocity_speed_ratio << '\n';
+         << record.engine.terminal_velocity_speed_ratio << ','
+         << record.engine.dynamic_limit_retries << ','
+         << record.engine.optimizer_cold_restarts << '\n';
   return static_cast<bool>(output);
 }
 
