@@ -317,6 +317,18 @@ bool DacSfcEngine::plan(const std::vector<Eigen::Vector3d> &route,
     const auto &final_corridor = optimizer.getFinalCorridorDiagnostics();
     result.diagnostics.final_corridor_violation =
         final_corridor.maxViolationM;
+    result.diagnostics.violation_piece =
+        final_corridor.maxViolationPiece;
+    result.diagnostics.violation_corridor =
+        final_corridor.maxViolationCorridor;
+    result.diagnostics.violation_face =
+        final_corridor.maxViolationFace;
+    result.diagnostics.violation_sample =
+        final_corridor.maxViolationSample;
+    result.diagnostics.violation_time =
+        final_corridor.maxViolationTime;
+    result.diagnostics.violation_position =
+        final_corridor.maxViolationPosition;
 
     if (std::isfinite(final_corridor.maxViolationM) &&
         final_corridor.maxViolationM <=
@@ -350,6 +362,13 @@ bool DacSfcEngine::plan(const std::vector<Eigen::Vector3d> &route,
                 << (attempt + 1) << "/" << total_optimizer_attempts
                 << " violation_m=" << final_corridor.maxViolationM
                 << " limit_m=" << options.max_final_corridor_violation
+                << " piece=" << final_corridor.maxViolationPiece
+                << " corridor=" << final_corridor.maxViolationCorridor
+                << " face=" << final_corridor.maxViolationFace
+                << " sample=" << final_corridor.maxViolationSample
+                << " piece_t=" << final_corridor.maxViolationTime
+                << " point="
+                << final_corridor.maxViolationPosition.transpose()
                 << " position_weight="
                 << result.diagnostics.final_position_weight
                 << " next_position_weight=" << next_position_weight
@@ -366,6 +385,13 @@ bool DacSfcEngine::plan(const std::vector<Eigen::Vector3d> &route,
               << " violation_m="
               << result.diagnostics.final_corridor_violation
               << " limit_m=" << options.max_final_corridor_violation
+              << " piece=" << result.diagnostics.violation_piece
+              << " corridor=" << result.diagnostics.violation_corridor
+              << " face=" << result.diagnostics.violation_face
+              << " sample=" << result.diagnostics.violation_sample
+              << " piece_t=" << result.diagnostics.violation_time
+              << " point="
+              << result.diagnostics.violation_position.transpose()
               << " final_position_weight="
               << result.diagnostics.final_position_weight
               << std::endl;
