@@ -53,7 +53,9 @@ bool optionsAreValid(const EngineOptions &options)
          options.acceleration_weight > 0.0 &&
          options.max_corridor_retries >= 0 &&
          std::isfinite(options.corridor_penalty_scale) &&
-         options.corridor_penalty_scale > 1.0;
+         options.corridor_penalty_scale > 1.0 &&
+         std::isfinite(options.dynamic_penalty_scale) &&
+         options.dynamic_penalty_scale > 1.0;
 }
 
 } // namespace
@@ -292,6 +294,7 @@ bool DacSfcEngine::plan(const std::vector<Eigen::Vector3d> &route,
   Trajectory<5> optimized_trajectory;
   bool corridor_satisfied = false;
   double cumulative_penalty_scale = 1.0;
+  double cumulative_dynamic_penalty_scale = 1.0;
   const int total_optimizer_attempts = 1 + options.max_corridor_retries;
 
   for (int attempt = 0; attempt < total_optimizer_attempts; ++attempt)
@@ -303,15 +306,18 @@ bool DacSfcEngine::plan(const std::vector<Eigen::Vector3d> &route,
             ? optimizer.optimize(
                   candidate_trajectory,
                   options.relative_cost_tolerance)
-            : optimizer.continueOptimizeWithCorridorPenaltyScale(
+            : optimizer.continueOptimizeWithPenaltyScales(
                   candidate_trajectory,
                   options.relative_cost_tolerance,
-                  cumulative_penalty_scale);
+                  cumulative_penalty_scale,
+                  cumulative_dynamic_penalty_scale);
     result.diagnostics.optimizer_ms += millisecondsSince(optimize_started);
     ++result.diagnostics.optimizer_attempts;
     result.diagnostics.final_cost = candidate_cost;
     result.diagnostics.final_position_weight =
         options.position_weight * cumulative_penalty_scale;
+    result.diagnostics.final_dynamic_penalty_scale =
+        cumulative_dynamic_penalty_scale;
 
     if (!std::isfinite(candidate_cost) ||
         candidate_trajectory.getPieceNum() <= 0)
@@ -324,6 +330,19 @@ bool DacSfcEngine::plan(const std::vector<Eigen::Vector3d> &route,
 
     result.diagnostics.optimizer_piece_count =
         candidate_trajectory.getPieceNum();
+    result.diagnostics.max_velocity = 0.0;
+    result.diagnostics.max_acceleration = 0.0;
+    for (int piece_id = 0;
+         piece_id < candidate_trajectory.getPieceNum(); ++piece_id)
+    {
+      const auto &candidate_piece = candidate_trajectory[piece_id];
+      result.diagnostics.max_velocity =
+          std::max(result.diagnostics.max_velocity,
+                   candidate_piece.getMaxVelRate());
+      result.diagnostics.max_acceleration =
+          std::max(result.diagnostics.max_acceleration,
+                   candidate_piece.getMaxAccRate());
+    }
 
     const auto &final_corridor = optimizer.getFinalCorridorDiagnostics();
     result.diagnostics.final_corridor_violation =
@@ -360,9 +379,13 @@ bool DacSfcEngine::plan(const std::vector<Eigen::Vector3d> &route,
     {
       const double next_penalty_scale =
           cumulative_penalty_scale * options.corridor_penalty_scale;
+      const double next_dynamic_penalty_scale =
+          cumulative_dynamic_penalty_scale *
+          options.dynamic_penalty_scale;
       const double next_position_weight =
           options.position_weight * next_penalty_scale;
       if (!std::isfinite(next_penalty_scale) ||
+          !std::isfinite(next_dynamic_penalty_scale) ||
           !std::isfinite(next_position_weight))
       {
         result.diagnostics.failure_stage = "corridor_penalty_overflow";
@@ -382,10 +405,20 @@ bool DacSfcEngine::plan(const std::vector<Eigen::Vector3d> &route,
                 << final_corridor.maxViolationPosition.transpose()
                 << " position_weight="
                 << result.diagnostics.final_position_weight
+                << " dynamic_scale="
+                << cumulative_dynamic_penalty_scale
+                << " next_dynamic_scale="
+                << next_dynamic_penalty_scale
+                << " candidate_max_vel="
+                << result.diagnostics.max_velocity
+                << " candidate_max_acc="
+                << result.diagnostics.max_acceleration
                 << " next_position_weight=" << next_position_weight
                 << std::endl;
 
       cumulative_penalty_scale = next_penalty_scale;
+      cumulative_dynamic_penalty_scale =
+          next_dynamic_penalty_scale;
     }
   }
 
@@ -405,6 +438,12 @@ bool DacSfcEngine::plan(const std::vector<Eigen::Vector3d> &route,
               << result.diagnostics.violation_position.transpose()
               << " final_position_weight="
               << result.diagnostics.final_position_weight
+              << " final_dynamic_scale="
+              << result.diagnostics.final_dynamic_penalty_scale
+              << " candidate_max_vel="
+              << result.diagnostics.max_velocity
+              << " candidate_max_acc="
+              << result.diagnostics.max_acceleration
               << std::endl;
     result.diagnostics.failure_stage = "corridor_violation";
     return false;
