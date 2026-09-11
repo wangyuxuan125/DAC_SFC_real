@@ -223,10 +223,20 @@ bool DacSfcEngine::plan(const std::vector<Eigen::Vector3d> &route,
                 << " reason=" << result.diagnostics.failure_stage
                 << " margin_m=" << diagnostics.failure_margin
                 << " obstacle=" << diagnostics.failure_obstacle
+                << " euclidean_fallbacks="
+                << diagnostics.euclidean_witness_fallbacks
                 << " start=" << route[i].transpose()
                 << " end=" << route[i + 1].transpose()
                 << std::endl;
       return false;
+    }
+
+    if (diagnostics.euclidean_witness_fallbacks > 0)
+    {
+      std::cerr << "[DAC-SFC] Active-Witness repaired voxel normals segment="
+                << i
+                << " count=" << diagnostics.euclidean_witness_fallbacks
+                << std::endl;
     }
 
     if (!result.corridors.empty() &&
