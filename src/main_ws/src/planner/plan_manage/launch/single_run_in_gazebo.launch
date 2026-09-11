@@ -5,6 +5,8 @@
     <arg name="dac_sfc_shadow_only" default="true"/>
     <arg name="dac_sfc_fallback_to_ego" default="true"/>
     <arg name="dac_sfc_log_directory" default="/tmp/dac_sfc_deployment"/>
+    <arg name="dac_sfc_max_corridor_retries" default="2"/>
+    <arg name="dac_sfc_corridor_penalty_scale" default="10.0"/>
     <arg name="max_vel" default="1.5"/>
     <arg name="max_acc" default="3.0"/>
     <arg name="planning_horizon" default="7.5"/>
@@ -44,6 +46,8 @@
         <arg name="dac_sfc_shadow_only" value="$(arg dac_sfc_shadow_only)"/>
         <arg name="dac_sfc_fallback_to_ego" value="$(arg dac_sfc_fallback_to_ego)"/>
         <arg name="dac_sfc_log_directory" value="$(arg dac_sfc_log_directory)"/>
+        <arg name="dac_sfc_max_corridor_retries" value="$(arg dac_sfc_max_corridor_retries)"/>
+        <arg name="dac_sfc_corridor_penalty_scale" value="$(arg dac_sfc_corridor_penalty_scale)"/>
         <arg name="map_size_x_" value="$(arg map_size_x)"/>
         <arg name="map_size_y_" value="$(arg map_size_y)"/>
         <arg name="map_size_z_" value="$(arg map_size_z)"/>
