@@ -6,12 +6,38 @@
     <arg name="swarm_broadcast_ip" default="127.0.0.255"/>
     <arg name="dac_sfc_shadow_only" default="true"/>
     <arg name="dac_sfc_fallback_to_ego" default="true"/>
+    <arg name="world_frame" default="world"/>
+    <arg name="drone_0_world_x" default="4.0"/>
+    <arg name="drone_0_world_y" default="7.5"/>
+    <arg name="drone_0_world_z" default="0.0"/>
+    <arg name="drone_0_world_yaw" default="0.0"/>
+    <arg name="drone_1_world_x" default="4.0"/>
+    <arg name="drone_1_world_y" default="3.0"/>
+    <arg name="drone_1_world_z" default="0.0"/>
+    <arg name="drone_1_world_yaw" default="0.0"/>
+    <arg name="drone_2_world_x" default="4.0"/>
+    <arg name="drone_2_world_y" default="-1.5"/>
+    <arg name="drone_2_world_z" default="0.0"/>
+    <arg name="drone_2_world_yaw" default="0.0"/>
 
     <include file="$(find ego_planner)/launch/multi_run_in_gazebo.launch">
         <arg name="start_swarm_bridge" value="$(arg start_swarm_bridge)"/>
         <arg name="swarm_broadcast_ip" value="$(arg swarm_broadcast_ip)"/>
         <arg name="dac_sfc_shadow_only" value="$(arg dac_sfc_shadow_only)"/>
         <arg name="dac_sfc_fallback_to_ego" value="$(arg dac_sfc_fallback_to_ego)"/>
+        <arg name="world_frame" value="$(arg world_frame)"/>
+        <arg name="drone_0_world_x" value="$(arg drone_0_world_x)"/>
+        <arg name="drone_0_world_y" value="$(arg drone_0_world_y)"/>
+        <arg name="drone_0_world_z" value="$(arg drone_0_world_z)"/>
+        <arg name="drone_0_world_yaw" value="$(arg drone_0_world_yaw)"/>
+        <arg name="drone_1_world_x" value="$(arg drone_1_world_x)"/>
+        <arg name="drone_1_world_y" value="$(arg drone_1_world_y)"/>
+        <arg name="drone_1_world_z" value="$(arg drone_1_world_z)"/>
+        <arg name="drone_1_world_yaw" value="$(arg drone_1_world_yaw)"/>
+        <arg name="drone_2_world_x" value="$(arg drone_2_world_x)"/>
+        <arg name="drone_2_world_y" value="$(arg drone_2_world_y)"/>
+        <arg name="drone_2_world_z" value="$(arg drone_2_world_z)"/>
+        <arg name="drone_2_world_yaw" value="$(arg drone_2_world_yaw)"/>
     </include>
 
     <include if="$(arg start_px4ctrl)"
