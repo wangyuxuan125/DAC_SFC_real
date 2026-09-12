@@ -79,7 +79,8 @@ private:
     transform.block<3, 3>(3, 3) = rotation;
 
     const Matrix6d result = transform * source * transform.transpose();
-    Eigen::Map<RowMajorMatrix6d>(covariance.data()) = result;
+    Eigen::Map<RowMajorMatrix6d> result_map(covariance.data());
+    result_map = result;
   }
 
   void rotateQuaternionForward(geometry_msgs::Quaternion &orientation) const
