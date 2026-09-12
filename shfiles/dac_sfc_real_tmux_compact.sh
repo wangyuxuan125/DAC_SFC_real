@@ -31,9 +31,12 @@ if ! command -v tmux >/dev/null 2>&1; then
 fi
 
 if tmux has-session -t "${SESSION}" 2>/dev/null; then
-  echo "tmux session '${SESSION}' already exists." >&2
-  echo "Land first, then close it explicitly: tmux kill-session -t ${SESSION}" >&2
-  exit 1
+  echo "tmux session '${SESSION}' already exists; opening it."
+  if [ -n "${TMUX:-}" ]; then
+    exec tmux switch-client -t "${SESSION}"
+  else
+    exec tmux attach-session -t "${SESSION}"
+  fi
 fi
 
 # Window 0: VINS odometry check uses half of the window. VINS and Goal share
