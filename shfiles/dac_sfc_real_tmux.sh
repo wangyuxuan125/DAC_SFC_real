@@ -28,7 +28,11 @@ if ! command -v tmux >/dev/null 2>&1; then
   exit 1
 fi
 
-tmux has-session -t "${SESSION}" 2>/dev/null && tmux kill-session -t "${SESSION}"
+if tmux has-session -t "${SESSION}" 2>/dev/null; then
+  echo "tmux session '${SESSION}' already exists." >&2
+  echo "Land first, then close it explicitly: tmux kill-session -t ${SESSION}" >&2
+  exit 1
+fi
 
 # Window 0: start VINS and monitor propagated odometry automatically.
 tmux new-session -d -s "${SESSION}" -n vins_check
