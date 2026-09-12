@@ -5,6 +5,8 @@ SESSION="dac_sfc_compact"
 VINS_WS="${HOME}/vins"
 DAC_WS="${HOME}/DAC_SFC_real"
 DECOMP_SETUP="/home/amov/decomp_ws/devel/setup.bash"
+TMUX_WIDTH="${DAC_TMUX_WIDTH:-180}"
+TMUX_HEIGHT="${DAC_TMUX_HEIGHT:-54}"
 
 BAG_DIR="${DAC_WS}/bags"
 mkdir -p "${BAG_DIR}"
@@ -41,7 +43,21 @@ fi
 
 # Window 0: VINS odometry check uses half of the window. VINS and Goal share
 # the other half. VINS and the check start automatically; Goal is pre-filled.
-tmux new-session -d -s "${SESSION}" -n vins_goal
+tmux new-session -d -x "${TMUX_WIDTH}" -y "${TMUX_HEIGHT}" \
+  -s "${SESSION}" -n vins_goal
+
+cleanup_incomplete_session()
+{
+  status=$?
+  trap - 0
+  if [ "${status}" -ne 0 ]; then
+    echo "tmux layout creation failed; removing incomplete session '${SESSION}'." >&2
+    tmux kill-session -t "${SESSION}" 2>/dev/null || true
+  fi
+  exit "${status}"
+}
+trap cleanup_incomplete_session 0
+
 tmux set-option -t "${SESSION}" pane-border-status top
 tmux set-option -t "${SESSION}" pane-border-format '#{pane_index}: #{pane_title}'
 tmux split-window -h -p 50 -t "${SESSION}:vins_goal.0"
@@ -95,4 +111,5 @@ tmux send-keys -t "${SESSION}:flight.5" \
   "cd '${DAC_WS}'; source /opt/ros/noetic/setup.bash; source '${DECOMP_SETUP}'; source '${DAC_WS}/devel/setup.bash'; ./script/uav_stop.sh"
 
 tmux select-window -t "${SESSION}:vins_goal"
+trap - 0
 tmux attach-session -t "${SESSION}"
