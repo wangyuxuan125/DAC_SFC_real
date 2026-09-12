@@ -15,7 +15,9 @@ for required_path in \
   "${VINS_WS}/vins.sh" \
   "/opt/ros/noetic/setup.bash" \
   "${DECOMP_SETUP}" \
-  "${DAC_WS}/devel/setup.bash"
+  "${DAC_WS}/devel/setup.bash" \
+  "${DAC_WS}/script/uav_start.sh" \
+  "${DAC_WS}/script/uav_stop.sh"
 do
   if [ ! -e "${required_path}" ]; then
     echo "Missing required path: ${required_path}" >&2
@@ -61,13 +63,15 @@ tmux split-window -h -t "${SESSION}:flight.0"
 tmux split-window -v -t "${SESSION}:flight.0"
 tmux split-window -v -t "${SESSION}:flight.1"
 tmux split-window -v -t "${SESSION}:flight.2"
+tmux split-window -v -t "${SESSION}:flight.3"
 tmux select-layout -t "${SESSION}:flight" tiled
 
 tmux select-pane -t "${SESSION}:flight.0" -T planner
 tmux select-pane -t "${SESSION}:flight.1" -T px4ctrl
 tmux select-pane -t "${SESSION}:flight.2" -T rosbag
 tmux select-pane -t "${SESSION}:flight.3" -T takeoff
-tmux select-pane -t "${SESSION}:flight.4" -T land
+tmux select-pane -t "${SESSION}:flight.4" -T uav_start
+tmux select-pane -t "${SESSION}:flight.5" -T uav_stop
 
 tmux send-keys -t "${SESSION}:flight.0" \
   "cd '${DAC_WS}'; source /opt/ros/noetic/setup.bash; source '${DECOMP_SETUP}'; source '${DAC_WS}/devel/setup.bash'; roslaunch ego_planner single_run_in_exp.launch start_px4ctrl:=false dac_sfc_visualization_enabled:=true start_odom_visualization:=true dac_sfc_log_enabled:=false"
@@ -82,7 +86,10 @@ tmux send-keys -t "${SESSION}:flight.3" \
   "cd '${DAC_WS}'; source /opt/ros/noetic/setup.bash; source '${DECOMP_SETUP}'; source '${DAC_WS}/devel/setup.bash'; sh shfiles/takeoff.sh"
 
 tmux send-keys -t "${SESSION}:flight.4" \
-  "cd '${DAC_WS}'; source /opt/ros/noetic/setup.bash; source '${DECOMP_SETUP}'; source '${DAC_WS}/devel/setup.bash'; sh shfiles/land.sh"
+  "cd '${DAC_WS}'; source /opt/ros/noetic/setup.bash; source '${DECOMP_SETUP}'; source '${DAC_WS}/devel/setup.bash'; ./script/uav_start.sh"
+
+tmux send-keys -t "${SESSION}:flight.5" \
+  "cd '${DAC_WS}'; source /opt/ros/noetic/setup.bash; source '${DECOMP_SETUP}'; source '${DAC_WS}/devel/setup.bash'; ./script/uav_stop.sh"
 
 tmux select-window -t "${SESSION}:vins_goal"
 tmux attach-session -t "${SESSION}"
