@@ -1,11 +1,31 @@
 <launch>
-    <!-- <group ns="iris_0"> -->
-        <node pkg="px4ctrl" type="px4ctrl_node" name="px4ctrl_2" output="screen">
-            <!-- <remap from="~odom" to="/vicon_imu_ekf_odom" /> -->
-            <!-- <remap from="odom" to="mavros/local_position/odom" /> -->
-            <remap from="~odom" to="/vins_fusion/imu_propagate" />
-            <remap from="~cmd" to="/iris_2/position_cmd" />
-            <rosparam command="load" file="$(find px4ctrl)/config/ctrl_param_fpv.yaml" />
-        </node>
-    <!-- </group> -->
+    <!-- Keep the flight-validated PX4Ctrl implementation unchanged; adapt only ROS names here. -->
+    <arg name="node_name" default="px4ctrl_2"/>
+    <arg name="odom_topic" default="/vins_fusion/imu_propagate"/>
+    <arg name="cmd_topic" default="/iris_0/position_cmd"/>
+    <arg name="takeoff_land_topic" default="/px4ctrl_2/takeoff_land"/>
+    <arg name="mavros_ns" default="/mavros"/>
+    <arg name="traj_start_trigger_topic" default="/traj_start_trigger"/>
+    <arg name="debug_topic" default="/debugPx4ctrl"/>
+
+    <node pkg="px4ctrl" type="px4ctrl_node" name="$(arg node_name)" output="screen">
+        <remap from="~odom" to="$(arg odom_topic)"/>
+        <remap from="~cmd" to="$(arg cmd_topic)"/>
+        <remap from="~takeoff_land" to="$(arg takeoff_land_topic)"/>
+
+        <!-- The validated controller uses absolute MAVROS names internally. -->
+        <remap from="/mavros/state" to="$(arg mavros_ns)/state"/>
+        <remap from="/mavros/extended_state" to="$(arg mavros_ns)/extended_state"/>
+        <remap from="/mavros/imu/data" to="$(arg mavros_ns)/imu/data"/>
+        <remap from="/mavros/rc/in" to="$(arg mavros_ns)/rc/in"/>
+        <remap from="/mavros/battery" to="$(arg mavros_ns)/battery"/>
+        <remap from="/mavros/setpoint_raw/attitude" to="$(arg mavros_ns)/setpoint_raw/attitude"/>
+        <remap from="/mavros/set_mode" to="$(arg mavros_ns)/set_mode"/>
+        <remap from="/mavros/cmd/arming" to="$(arg mavros_ns)/cmd/arming"/>
+        <remap from="/mavros/cmd/command" to="$(arg mavros_ns)/cmd/command"/>
+
+        <remap from="/traj_start_trigger" to="$(arg traj_start_trigger_topic)"/>
+        <remap from="/debugPx4ctrl" to="$(arg debug_topic)"/>
+        <rosparam command="load" file="$(find px4ctrl)/config/ctrl_param_fpv.yaml"/>
+    </node>
 </launch>
