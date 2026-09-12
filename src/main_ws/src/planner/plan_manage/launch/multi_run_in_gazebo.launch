@@ -10,6 +10,22 @@
     <arg name="swarm_odom_max_freq" default="70"/>
     <arg name="dac_sfc_shadow_only" default="true"/>
     <arg name="dac_sfc_fallback_to_ego" default="true"/>
+    <!-- Fixed transforms from each PX4 local ENU origin to Gazebo world.
+         PX4 local axes are world-aligned here, so yaw offsets default to zero;
+         the 3.14 vehicle heading remains in the odometry quaternion. -->
+    <arg name="world_frame" default="world"/>
+    <arg name="drone_0_world_x" default="4.0"/>
+    <arg name="drone_0_world_y" default="7.5"/>
+    <arg name="drone_0_world_z" default="0.0"/>
+    <arg name="drone_0_world_yaw" default="0.0"/>
+    <arg name="drone_1_world_x" default="4.0"/>
+    <arg name="drone_1_world_y" default="3.0"/>
+    <arg name="drone_1_world_z" default="0.0"/>
+    <arg name="drone_1_world_yaw" default="0.0"/>
+    <arg name="drone_2_world_x" default="4.0"/>
+    <arg name="drone_2_world_y" default="-1.5"/>
+    <arg name="drone_2_world_z" default="0.0"/>
+    <arg name="drone_2_world_yaw" default="0.0"/>
     <!-- <arg name="odom_topic" value="visual_slam/odom" /> -->
 
     <node pkg ="assign_goals" name ="assign_goals_node" type ="assign_goals_node" output = "screen"/>
@@ -38,9 +54,26 @@
         <arg name="target4_y" default="0.0"/>
         <arg name="target4_z" default="0.0"/>
         <!-- topic of your odometry such as VIO or LIO -->
-        <arg name="odom_topic" value="mavros/local_position/odom"/>
+        <arg name="local_odom_topic" value="mavros/local_position/odom"/>
+        <arg name="odom_topic" value="planning/world_odom"/>
         <arg name="depth_topic" value="realsense/depth_camera/depth/image_raw"/>
         <arg name="cmd_topic" value="position_cmd"/>
+        <arg name="local_cmd_topic" value="position_cmd_local"/>
+        <!-- Keep planning and inter-drone trajectories in one Gazebo world frame,
+             while PX4Ctrl continues to consume local-frame commands. -->
+        <node pkg="swarm_bridge" type="planning_frame_adapter_node"
+              name="drone_$(arg drone_id)_planning_frame_adapter" output="screen">
+            <remap from="~local_odom" to="$(arg local_odom_topic)"/>
+            <remap from="~world_odom" to="$(arg odom_topic)"/>
+            <remap from="~world_cmd" to="$(arg cmd_topic)"/>
+            <remap from="~local_cmd" to="$(arg local_cmd_topic)"/>
+            <param name="offset_x" value="$(arg drone_0_world_x)" type="double"/>
+            <param name="offset_y" value="$(arg drone_0_world_y)" type="double"/>
+            <param name="offset_z" value="$(arg drone_0_world_z)" type="double"/>
+            <param name="yaw_offset" value="$(arg drone_0_world_yaw)" type="double"/>
+            <param name="world_frame" value="$(arg world_frame)" type="string"/>
+            <param name="child_frame" value="drone_$(arg drone_id)" type="string"/>
+        </node>
         <!-- main algorithm params -->
         <include file="$(find ego_planner)/launch/include/advanced_param_gazebo.xml">
             <arg name="drone_id" value="$(arg drone_id)"/>
@@ -167,9 +200,26 @@
         <arg name="target4_y" default="0.0"/>
         <arg name="target4_z" default="0.0"/>
         <!-- topic of your odometry such as VIO or LIO -->
-        <arg name="odom_topic" value="mavros/local_position/odom"/>
+        <arg name="local_odom_topic" value="mavros/local_position/odom"/>
+        <arg name="odom_topic" value="planning/world_odom"/>
         <arg name="depth_topic" value="realsense/depth_camera/depth/image_raw"/>
         <arg name="cmd_topic" value="position_cmd"/>
+        <arg name="local_cmd_topic" value="position_cmd_local"/>
+        <!-- Keep planning and inter-drone trajectories in one Gazebo world frame,
+             while PX4Ctrl continues to consume local-frame commands. -->
+        <node pkg="swarm_bridge" type="planning_frame_adapter_node"
+              name="drone_$(arg drone_id)_planning_frame_adapter" output="screen">
+            <remap from="~local_odom" to="$(arg local_odom_topic)"/>
+            <remap from="~world_odom" to="$(arg odom_topic)"/>
+            <remap from="~world_cmd" to="$(arg cmd_topic)"/>
+            <remap from="~local_cmd" to="$(arg local_cmd_topic)"/>
+            <param name="offset_x" value="$(arg drone_1_world_x)" type="double"/>
+            <param name="offset_y" value="$(arg drone_1_world_y)" type="double"/>
+            <param name="offset_z" value="$(arg drone_1_world_z)" type="double"/>
+            <param name="yaw_offset" value="$(arg drone_1_world_yaw)" type="double"/>
+            <param name="world_frame" value="$(arg world_frame)" type="string"/>
+            <param name="child_frame" value="drone_$(arg drone_id)" type="string"/>
+        </node>
         <!-- main algorithm params -->
         <include file="$(find ego_planner)/launch/include/advanced_param_gazebo.xml">
             <arg name="drone_id" value="$(arg drone_id)"/>
@@ -293,9 +343,26 @@
         <arg name="target4_y" default="0.0"/>
         <arg name="target4_z" default="0.0"/>
         <!-- topic of your odometry such as VIO or LIO -->
-        <arg name="odom_topic" value="mavros/local_position/odom"/>
+        <arg name="local_odom_topic" value="mavros/local_position/odom"/>
+        <arg name="odom_topic" value="planning/world_odom"/>
         <arg name="depth_topic" value="realsense/depth_camera/depth/image_raw"/>
         <arg name="cmd_topic" value="position_cmd"/>
+        <arg name="local_cmd_topic" value="position_cmd_local"/>
+        <!-- Keep planning and inter-drone trajectories in one Gazebo world frame,
+             while PX4Ctrl continues to consume local-frame commands. -->
+        <node pkg="swarm_bridge" type="planning_frame_adapter_node"
+              name="drone_$(arg drone_id)_planning_frame_adapter" output="screen">
+            <remap from="~local_odom" to="$(arg local_odom_topic)"/>
+            <remap from="~world_odom" to="$(arg odom_topic)"/>
+            <remap from="~world_cmd" to="$(arg cmd_topic)"/>
+            <remap from="~local_cmd" to="$(arg local_cmd_topic)"/>
+            <param name="offset_x" value="$(arg drone_2_world_x)" type="double"/>
+            <param name="offset_y" value="$(arg drone_2_world_y)" type="double"/>
+            <param name="offset_z" value="$(arg drone_2_world_z)" type="double"/>
+            <param name="yaw_offset" value="$(arg drone_2_world_yaw)" type="double"/>
+            <param name="world_frame" value="$(arg world_frame)" type="string"/>
+            <param name="child_frame" value="drone_$(arg drone_id)" type="string"/>
+        </node>
         <!-- main algorithm params -->
         <include file="$(find ego_planner)/launch/include/advanced_param_gazebo.xml">
             <arg name="drone_id" value="$(arg drone_id)"/>
