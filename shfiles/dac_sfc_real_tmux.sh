@@ -32,7 +32,11 @@ tmux has-session -t "${SESSION}" 2>/dev/null && tmux kill-session -t "${SESSION}
 
 # Window 0: start VINS and monitor propagated odometry automatically.
 tmux new-session -d -s "${SESSION}" -n vins_check
+tmux set-option -t "${SESSION}" pane-border-status top
+tmux set-option -t "${SESSION}" pane-border-format '#{pane_index}: #{pane_title}'
 tmux split-window -h -t "${SESSION}:vins_check.0"
+tmux select-pane -t "${SESSION}:vins_check.0" -T vins
+tmux select-pane -t "${SESSION}:vins_check.1" -T vins_odom
 tmux send-keys -t "${SESSION}:vins_check.0" \
   "cd '${VINS_WS}'; source devel/setup.bash; sh vins.sh" C-m
 tmux send-keys -t "${SESSION}:vins_check.1" \
@@ -45,6 +49,9 @@ tmux new-window -t "${SESSION}" -n core
 tmux split-window -h -t "${SESSION}:core.0"
 tmux split-window -v -t "${SESSION}:core.0"
 tmux select-layout -t "${SESSION}:core" tiled
+tmux select-pane -t "${SESSION}:core.0" -T planner
+tmux select-pane -t "${SESSION}:core.1" -T px4ctrl
+tmux select-pane -t "${SESSION}:core.2" -T rosbag
 
 tmux send-keys -t "${SESSION}:core.0" \
   "cd '${DAC_WS}'; source /opt/ros/noetic/setup.bash; source '${DECOMP_SETUP}'; source '${DAC_WS}/devel/setup.bash'; roslaunch ego_planner single_run_in_exp.launch start_px4ctrl:=false dac_sfc_visualization_enabled:=true start_odom_visualization:=true dac_sfc_log_enabled:=false"
@@ -62,6 +69,10 @@ tmux split-window -h -t "${SESSION}:flight_ops.0"
 tmux split-window -v -t "${SESSION}:flight_ops.0"
 tmux split-window -v -t "${SESSION}:flight_ops.1"
 tmux select-layout -t "${SESSION}:flight_ops" tiled
+tmux select-pane -t "${SESSION}:flight_ops.0" -T mavros_state
+tmux select-pane -t "${SESSION}:flight_ops.1" -T takeoff
+tmux select-pane -t "${SESSION}:flight_ops.2" -T goal
+tmux select-pane -t "${SESSION}:flight_ops.3" -T land
 
 tmux send-keys -t "${SESSION}:flight_ops.0" \
   "cd '${DAC_WS}'; source /opt/ros/noetic/setup.bash; source '${DECOMP_SETUP}'; source '${DAC_WS}/devel/setup.bash'; until rostopic list >/dev/null 2>&1; do sleep 1; done; rostopic echo /mavros/state" C-m
