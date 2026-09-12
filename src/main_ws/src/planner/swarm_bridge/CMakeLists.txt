@@ -14,13 +14,15 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   std_msgs
   geometry_msgs
+  nav_msgs
+  quadrotor_msgs
   traj_utils
   traj_opt # for traj2odom_node
   sensor_msgs
 )
 
 catkin_package(
- CATKIN_DEPENDS traj_utils
+ CATKIN_DEPENDS geometry_msgs nav_msgs quadrotor_msgs traj_utils
 )
 
 include_directories(
@@ -29,6 +31,13 @@ include_directories(
   ${PROJECT_SOURCE_DIR}/include
   ${EIGEN3_INCLUDE_DIR}
 )
+
+add_executable(planning_frame_adapter_node
+  src/planning_frame_adapter_node.cpp
+  )
+target_link_libraries(planning_frame_adapter_node
+  ${catkin_LIBRARIES}
+  )
 
 add_executable(bridge_node_udp
   src/bridge_node_udp.cpp 
