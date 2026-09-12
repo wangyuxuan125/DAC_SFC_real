@@ -7,6 +7,7 @@
     <arg name="swarm_broadcast_ip" default="127.0.0.255"/>
     <arg name="dac_sfc_shadow_only" default="true"/>
     <arg name="dac_sfc_fallback_to_ego" default="true"/>
+    <arg name="px4ctrl_hover_percentage" default="0.5"/>
     <arg name="world_frame" default="world"/>
     <arg name="drone_0_world_x" default="4.0"/>
     <arg name="drone_0_world_y" default="7.5"/>
@@ -43,7 +44,9 @@
     </include>
 
     <include if="$(arg start_px4ctrl)"
-             file="$(find px4ctrl)/launch/multi_node_gazebo.launch"/>
+             file="$(find px4ctrl)/launch/multi_node_gazebo.launch">
+        <arg name="hover_percentage" value="$(arg px4ctrl_hover_percentage)"/>
+    </include>
 
     <include if="$(arg start_rviz)"
              file="$(find ego_planner)/launch/rviz.launch"/>
