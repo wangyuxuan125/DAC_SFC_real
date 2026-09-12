@@ -3,6 +3,7 @@
     <arg name="start_px4ctrl" default="true"/>
     <arg name="start_rviz" default="true"/>
     <arg name="start_swarm_bridge" default="true"/>
+    <arg name="start_assign_goals" default="false"/>
     <arg name="swarm_broadcast_ip" default="127.0.0.255"/>
     <arg name="dac_sfc_shadow_only" default="true"/>
     <arg name="dac_sfc_fallback_to_ego" default="true"/>
@@ -22,6 +23,7 @@
 
     <include file="$(find ego_planner)/launch/multi_run_in_gazebo.launch">
         <arg name="start_swarm_bridge" value="$(arg start_swarm_bridge)"/>
+        <arg name="start_assign_goals" value="$(arg start_assign_goals)"/>
         <arg name="swarm_broadcast_ip" value="$(arg swarm_broadcast_ip)"/>
         <arg name="dac_sfc_shadow_only" value="$(arg dac_sfc_shadow_only)"/>
         <arg name="dac_sfc_fallback_to_ego" value="$(arg dac_sfc_fallback_to_ego)"/>
