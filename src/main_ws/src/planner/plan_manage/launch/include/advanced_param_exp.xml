@@ -48,6 +48,8 @@
        <arg name="dac_sfc_optimizer_piece_length" default="0.75"/>
     <arg name="dac_sfc_align_terminal_velocity_with_route" default="true"/>
     <arg name="dac_sfc_overlap_radius" default="0.02"/>
+    <!-- Preserve the legacy profile unless the top-level real-flight launch overrides it. -->
+    <arg name="dac_sfc_vehicle_mass" default="0.61"/>
     <!-- main node -->
     <!-- <node pkg="ego_planner" name="ego_planner_node" type="ego_planner_node" output="screen" launch-prefix="valgrind"> -->
     <node pkg="ego_planner" name="drone_$(arg drone_id)_ego_planner_node" type="ego_planner_node" output="screen">
@@ -192,7 +194,7 @@
         <param name="manager/dac_sfc/overlap_radius" value="$(arg dac_sfc_overlap_radius)" type="double"/>
         <param name="manager/dac_sfc/quadrature_resolution" value="16" type="int"/>
         <!-- Verify these airframe limits against the actual vehicle before flight. -->
-        <param name="manager/dac_sfc/vehicle_mass" value="0.61" type="double"/>
+        <param name="manager/dac_sfc/vehicle_mass" value="$(arg dac_sfc_vehicle_mass)" type="double"/>
         <param name="manager/dac_sfc/max_body_rate" value="2.1" type="double"/>
         <param name="manager/dac_sfc/max_tilt_angle" value="1.05" type="double"/>
         <param name="manager/dac_sfc/min_thrust" value="2.0" type="double"/>

@@ -38,6 +38,8 @@
     <arg name="dac_sfc_optimizer_piece_length" default="0.75"/>
     <arg name="dac_sfc_align_terminal_velocity_with_route" default="true"/>
     <arg name="dac_sfc_overlap_radius" default="0.02"/>
+    <!-- Actual takeoff mass of the validated real-flight platform. -->
+    <arg name="dac_sfc_vehicle_mass" default="1.0"/>
     <arg name="planning_horizon" default="5.0"/>
     <arg name="max_vel" default="1.0"/>
     <arg name="max_acc" default="2.0"/>
@@ -78,6 +80,7 @@
         <arg name="dac_sfc_optimizer_piece_length" value="$(arg dac_sfc_optimizer_piece_length)"/>
         <arg name="dac_sfc_align_terminal_velocity_with_route" value="$(arg dac_sfc_align_terminal_velocity_with_route)"/>
         <arg name="dac_sfc_overlap_radius" value="$(arg dac_sfc_overlap_radius)"/>
+        <arg name="dac_sfc_vehicle_mass" value="$(arg dac_sfc_vehicle_mass)"/>
         <arg name="map_size_x_" value="$(arg map_size_x)"/>
         <arg name="map_size_y_" value="$(arg map_size_y)"/>
         <arg name="map_size_z_" value="$(arg map_size_z)"/>
