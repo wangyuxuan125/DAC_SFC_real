@@ -1,5 +1,5 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/sh
+set -eu
 
 SESSION="dac_sfc_real"
 VINS_WS="${HOME}/vins"
@@ -17,7 +17,7 @@ for required_path in \
   "${DECOMP_SETUP}" \
   "${DAC_WS}/devel/setup.bash"
 do
-  if [[ ! -e "${required_path}" ]]; then
+  if [ ! -e "${required_path}" ]; then
     echo "Missing required path: ${required_path}" >&2
     exit 1
   fi
