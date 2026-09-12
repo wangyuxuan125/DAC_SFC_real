@@ -69,6 +69,7 @@ void Parameter_t::config_from_ros_handle(const ros::NodeHandle &nh)
 	read_essential_param(nh, "use_bodyrate_ctrl", use_bodyrate_ctrl);
 	read_essential_param(nh, "max_manual_vel", max_manual_vel);
 	read_essential_param(nh, "max_angle", max_angle);
+	read_essential_param(nh, "odom_velocity_in_body", odom_velocity_in_body);
 	read_essential_param(nh, "low_voltage", low_voltage);
 
 	read_essential_param(nh, "rc_reverse/roll", rc_reverse.roll);

@@ -185,6 +185,8 @@ public:
 
     bool use_bodyrate_ctrl;
     bool perform_aerodynamics_compensation;
+    // Convert child/body-frame odometry velocity before world-frame control.
+    bool odom_velocity_in_body;
     // bool print_dbg;
 
     Parameter_t();

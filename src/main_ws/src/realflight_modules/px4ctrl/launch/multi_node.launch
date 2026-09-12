@@ -9,6 +9,8 @@
     <arg name="debug_topic" default="/debugPx4ctrl"/>
     <!-- Real-flight default. Gazebo launch explicitly overrides this with PX4 SITL MPC_THR_HOVER. -->
     <arg name="hover_percentage" default="0.72"/>
+    <!-- The flight-validated VINS profile supplies world-frame velocity. -->
+    <arg name="odom_velocity_in_body" default="false"/>
 
     <node pkg="px4ctrl" type="px4ctrl_node" name="$(arg node_name)" output="screen">
         <remap from="~odom" to="$(arg odom_topic)"/>
@@ -31,5 +33,6 @@
         <rosparam command="load" file="$(find px4ctrl)/config/ctrl_param_fpv.yaml"/>
         <!-- Applied after the YAML load so simulation can use its calibrated hover value. -->
         <param name="thrust_model/hover_percentage" value="$(arg hover_percentage)"/>
+        <param name="odom_velocity_in_body" value="$(arg odom_velocity_in_body)"/>
     </node>
 </launch>

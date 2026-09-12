@@ -2,6 +2,8 @@
     <!-- Three instances of the flight-validated PX4Ctrl for PX4 SITL vehicles 0..2. -->
     <!-- PX4 SITL reports MPC_THR_HOVER=0.5 for the Iris model. -->
     <arg name="hover_percentage" default="0.5"/>
+    <!-- MAVROS local_position/odom supplies base_link-frame linear velocity. -->
+    <arg name="odom_velocity_in_body" default="true"/>
 
     <include file="$(find px4ctrl)/launch/multi_node.launch">
         <arg name="node_name" value="px4ctrl_0"/>
@@ -11,6 +13,7 @@
         <arg name="mavros_ns" value="/iris_0/mavros"/>
         <arg name="debug_topic" value="/debugPx4ctrl_0"/>
         <arg name="hover_percentage" value="$(arg hover_percentage)"/>
+        <arg name="odom_velocity_in_body" value="$(arg odom_velocity_in_body)"/>
     </include>
 
     <include file="$(find px4ctrl)/launch/multi_node.launch">
@@ -21,6 +24,7 @@
         <arg name="mavros_ns" value="/iris_1/mavros"/>
         <arg name="debug_topic" value="/debugPx4ctrl_1"/>
         <arg name="hover_percentage" value="$(arg hover_percentage)"/>
+        <arg name="odom_velocity_in_body" value="$(arg odom_velocity_in_body)"/>
     </include>
 
     <include file="$(find px4ctrl)/launch/multi_node.launch">
@@ -31,5 +35,6 @@
         <arg name="mavros_ns" value="/iris_2/mavros"/>
         <arg name="debug_topic" value="/debugPx4ctrl_2"/>
         <arg name="hover_percentage" value="$(arg hover_percentage)"/>
+        <arg name="odom_velocity_in_body" value="$(arg odom_velocity_in_body)"/>
     </include>
 </launch>

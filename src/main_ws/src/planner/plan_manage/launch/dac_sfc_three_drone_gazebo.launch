@@ -8,6 +8,7 @@
     <arg name="dac_sfc_shadow_only" default="true"/>
     <arg name="dac_sfc_fallback_to_ego" default="true"/>
     <arg name="px4ctrl_hover_percentage" default="0.5"/>
+    <arg name="px4ctrl_odom_velocity_in_body" default="true"/>
     <arg name="world_frame" default="world"/>
     <arg name="drone_0_world_x" default="4.0"/>
     <arg name="drone_0_world_y" default="7.5"/>
@@ -46,6 +47,7 @@
     <include if="$(arg start_px4ctrl)"
              file="$(find px4ctrl)/launch/multi_node_gazebo.launch">
         <arg name="hover_percentage" value="$(arg px4ctrl_hover_percentage)"/>
+        <arg name="odom_velocity_in_body" value="$(arg px4ctrl_odom_velocity_in_body)"/>
     </include>
 
     <include if="$(arg start_rviz)"

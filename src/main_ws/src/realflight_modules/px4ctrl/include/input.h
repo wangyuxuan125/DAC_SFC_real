@@ -61,6 +61,7 @@ public:
   nav_msgs::Odometry msg;
   ros::Time rcv_stamp;
   bool recv_new_msg;
+  bool velocity_in_body{false};
 
   Odom_Data_t();
   void feed(nav_msgs::OdometryConstPtr pMsg);

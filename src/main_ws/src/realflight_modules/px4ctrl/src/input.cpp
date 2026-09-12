@@ -133,16 +133,13 @@ void Odom_Data_t::feed(nav_msgs::OdometryConstPtr pMsg)
 
     uav_utils::extract_odometry(pMsg, p, v, q, w);
 
-// #define VEL_IN_BODY
-#ifdef VEL_IN_BODY /* Set to 1 if the velocity in odom topic is relative to current body frame, not to world frame.*/
-    Eigen::Quaternion<double> wRb_q(msg.pose.pose.orientation.w, msg.pose.pose.orientation.x, msg.pose.pose.orientation.y, msg.pose.pose.orientation.z);
-    Eigen::Matrix3d wRb = wRb_q.matrix();
-    v = wRb * v;
-
-    static int count = 0;
-    if (count++ % 500 == 0)
-        ROS_WARN("VEL_IN_BODY!!!");
-#endif
+    // nav_msgs/Odometry twist is expressed in child_frame_id. MAVROS
+    // local_position/odom therefore provides linear velocity in base_link.
+    if (velocity_in_body)
+    {
+        const Eigen::Matrix3d world_R_body = q.normalized().toRotationMatrix();
+        v = world_R_body * v;
+    }
 
     // check the frequency
     static int one_min_count = 9999;

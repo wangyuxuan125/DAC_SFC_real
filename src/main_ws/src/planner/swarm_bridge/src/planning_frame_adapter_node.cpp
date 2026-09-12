@@ -1,6 +1,7 @@
 #include <ros/ros.h>
 
 #include <Eigen/Core>
+#include <Eigen/Geometry>
 #include <cmath>
 #include <nav_msgs/Odometry.h>
 #include <quadrotor_msgs/PositionCommand.h>
@@ -35,6 +36,8 @@ public:
     node_.param("yaw_offset", yaw_offset_, 0.0);
     node_.param("world_frame", world_frame_, std::string("world"));
     node_.param("child_frame", child_frame_, std::string("base_link"));
+    node_.param("local_odom_velocity_in_body",
+                local_odom_velocity_in_body_, true);
 
     cosine_ = std::cos(yaw_offset_);
     sine_ = std::sin(yaw_offset_);
@@ -108,6 +111,27 @@ private:
   {
     nav_msgs::Odometry world = *message;
 
+    if (local_odom_velocity_in_body_)
+    {
+      const geometry_msgs::Quaternion &orientation =
+          message->pose.pose.orientation;
+      Eigen::Quaterniond local_R_body(
+          orientation.w, orientation.x, orientation.y, orientation.z);
+      if (local_R_body.norm() > 1.0e-12)
+      {
+        local_R_body.normalize();
+        const Eigen::Vector3d body_velocity(
+            message->twist.twist.linear.x,
+            message->twist.twist.linear.y,
+            message->twist.twist.linear.z);
+        const Eigen::Vector3d local_velocity =
+            local_R_body * body_velocity;
+        world.twist.twist.linear.x = local_velocity.x();
+        world.twist.twist.linear.y = local_velocity.y();
+        world.twist.twist.linear.z = local_velocity.z();
+      }
+    }
+
     rotateZ(world.pose.pose.position, cosine_, sine_);
     world.pose.pose.position.x += offset_x_;
     world.pose.pose.position.y += offset_y_;
@@ -156,6 +180,7 @@ private:
   double sine_;
   std::string world_frame_;
   std::string child_frame_;
+  bool local_odom_velocity_in_body_;
 };
 
 int main(int argc, char **argv)

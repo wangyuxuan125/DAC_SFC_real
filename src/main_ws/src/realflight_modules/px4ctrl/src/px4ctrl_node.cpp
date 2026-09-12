@@ -22,6 +22,11 @@ int main(int argc, char *argv[])
     // Controller controller(param);
     LinearControl controller(param);
     PX4CtrlFSM fsm(param, controller);
+    fsm.odom_data.velocity_in_body = param.odom_velocity_in_body;
+    ROS_INFO_STREAM("[PX4CTRL] odom velocity frame: "
+                    << (param.odom_velocity_in_body
+                            ? "body -> world conversion enabled"
+                            : "world (no conversion)"));
 
     ros::Subscriber state_sub =
         nh.subscribe<mavros_msgs::State>("/mavros/state",
