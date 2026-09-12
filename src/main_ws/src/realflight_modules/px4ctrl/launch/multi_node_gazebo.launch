@@ -1,5 +1,8 @@
 <launch>
     <!-- Three instances of the flight-validated PX4Ctrl for PX4 SITL vehicles 0..2. -->
+    <!-- PX4 SITL reports MPC_THR_HOVER=0.5 for the Iris model. -->
+    <arg name="hover_percentage" default="0.5"/>
+
     <include file="$(find px4ctrl)/launch/multi_node.launch">
         <arg name="node_name" value="px4ctrl_0"/>
         <arg name="odom_topic" value="/iris_0/mavros/local_position/odom"/>
@@ -7,6 +10,7 @@
         <arg name="takeoff_land_topic" value="/iris_0/takeoff_land"/>
         <arg name="mavros_ns" value="/iris_0/mavros"/>
         <arg name="debug_topic" value="/debugPx4ctrl_0"/>
+        <arg name="hover_percentage" value="$(arg hover_percentage)"/>
     </include>
 
     <include file="$(find px4ctrl)/launch/multi_node.launch">
@@ -16,6 +20,7 @@
         <arg name="takeoff_land_topic" value="/iris_1/takeoff_land"/>
         <arg name="mavros_ns" value="/iris_1/mavros"/>
         <arg name="debug_topic" value="/debugPx4ctrl_1"/>
+        <arg name="hover_percentage" value="$(arg hover_percentage)"/>
     </include>
 
     <include file="$(find px4ctrl)/launch/multi_node.launch">
@@ -25,5 +30,6 @@
         <arg name="takeoff_land_topic" value="/iris_2/takeoff_land"/>
         <arg name="mavros_ns" value="/iris_2/mavros"/>
         <arg name="debug_topic" value="/debugPx4ctrl_2"/>
+        <arg name="hover_percentage" value="$(arg hover_percentage)"/>
     </include>
 </launch>
