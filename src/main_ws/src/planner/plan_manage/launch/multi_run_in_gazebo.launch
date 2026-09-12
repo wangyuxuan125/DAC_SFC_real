@@ -46,10 +46,6 @@
             <arg name="drone_id" value="$(arg drone_id)"/>
             <arg name="dac_sfc_shadow_only" value="$(arg dac_sfc_shadow_only)"/>
             <arg name="dac_sfc_fallback_to_ego" value="$(arg dac_sfc_fallback_to_ego)"/>
-            <arg name="dac_sfc_shadow_only" value="$(arg dac_sfc_shadow_only)"/>
-            <arg name="dac_sfc_fallback_to_ego" value="$(arg dac_sfc_fallback_to_ego)"/>
-            <arg name="dac_sfc_shadow_only" value="$(arg dac_sfc_shadow_only)"/>
-            <arg name="dac_sfc_fallback_to_ego" value="$(arg dac_sfc_fallback_to_ego)"/>
             <arg name="map_size_x_" value="$(arg map_size_x)"/>
             <arg name="map_size_y_" value="$(arg map_size_y)"/>
             <arg name="map_size_z_" value="$(arg map_size_z)"/>
@@ -177,6 +173,8 @@
         <!-- main algorithm params -->
         <include file="$(find ego_planner)/launch/include/advanced_param_gazebo.xml">
             <arg name="drone_id" value="$(arg drone_id)"/>
+            <arg name="dac_sfc_shadow_only" value="$(arg dac_sfc_shadow_only)"/>
+            <arg name="dac_sfc_fallback_to_ego" value="$(arg dac_sfc_fallback_to_ego)"/>
             <arg name="map_size_x_" value="$(arg map_size_x)"/>
             <arg name="map_size_y_" value="$(arg map_size_y)"/>
             <arg name="map_size_z_" value="$(arg map_size_z)"/>
@@ -301,6 +299,8 @@
         <!-- main algorithm params -->
         <include file="$(find ego_planner)/launch/include/advanced_param_gazebo.xml">
             <arg name="drone_id" value="$(arg drone_id)"/>
+            <arg name="dac_sfc_shadow_only" value="$(arg dac_sfc_shadow_only)"/>
+            <arg name="dac_sfc_fallback_to_ego" value="$(arg dac_sfc_fallback_to_ego)"/>
             <arg name="map_size_x_" value="$(arg map_size_x)"/>
             <arg name="map_size_y_" value="$(arg map_size_y)"/>
             <arg name="map_size_z_" value="$(arg map_size_z)"/>
