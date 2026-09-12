@@ -1,5 +1,5 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/sh
+set -eu
 
 rostopic pub -1 /iris_0/takeoff_land \
   quadrotor_msgs/TakeoffLand \
