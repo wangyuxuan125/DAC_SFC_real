@@ -6,6 +6,8 @@
 
     <!-- Three-drone Gazebo communication and DAC-SFC mode. -->
     <arg name="start_swarm_bridge" default="true"/>
+    <!-- Optional RViz goal fan-out helper. Command-line GoalSet does not need it. -->
+    <arg name="start_assign_goals" default="false"/>
     <arg name="swarm_broadcast_ip" default="127.0.0.255"/>
     <arg name="swarm_odom_max_freq" default="70"/>
     <arg name="dac_sfc_shadow_only" default="true"/>
@@ -28,7 +30,7 @@
     <arg name="drone_2_world_yaw" default="0.0"/>
     <!-- <arg name="odom_topic" value="visual_slam/odom" /> -->
 
-    <node pkg ="assign_goals" name ="assign_goals_node" type ="assign_goals_node" output = "screen"/>
+    <node if="$(arg start_assign_goals)" pkg="assign_goals" name="assign_goals_node" type="assign_goals_node" output="screen"/>
 
     <!-- Group for drone_0 -->
     <group ns="iris_0">
