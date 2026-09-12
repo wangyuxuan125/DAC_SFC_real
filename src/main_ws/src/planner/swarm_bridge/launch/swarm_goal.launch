@@ -1,28 +1,27 @@
- <launch>   
-    
-    <node pkg ="assign_goals" name ="assign_goals_node" type ="assign_goals_node" output = "screen"/>
-    
-    <!-- Group for drone_0 -->
-    <group ns="iris_255">
-    
-    <!--id-->
-    <arg name="drone_id" value="255"/>
-    
-    <!-- swarm topic transmitter bridge-->
-    <node pkg="swarm_bridge" name="drone_$(arg drone_id)_bridge_node" type="bridge_node_udp" output="screen">
-        <!-- <remap from="~my_odom"         to="vins_estimator/imu_propagate"/> -->
-        <remap from="~my_odom"         to="/vins_estimator/imu_propagate"/>
-        <remap from="/goal_brig2plner"  to="/goal_with_id"/>
-        <remap from="/broadcast_traj_to_planner"   to="/broadcast_traj_to_planner"/>
-        <remap from="/broadcast_traj_from_planner" to="/broadcast_traj_from_planner"/>
-        <param name="broadcast_ip" value="192.168.50.255" />
-        <!-- <param name="broadcast_ip" value="$(arg broadcast_ip)" type="string"/> -->
-        <param name="drone_id" value="$(arg drone_id)"/>
-        <param name="odom_max_freq" value="70"/>
-    </node>
-
-    <node pkg="swarm_bridge" name="traj2odom_node" type="traj2odom_node" output="screen">
-        <param name="odom_hz" value="30" />
-    </node>
-
 <launch>
+    <arg name="broadcast_ip" default="192.168.50.255"/>
+
+    <node pkg="assign_goals" name="assign_goals_node"
+          type="assign_goals_node" output="screen"/>
+
+    <!-- Ground-station goal bridge uses the reserved sender ID 255. -->
+    <group ns="iris_255">
+        <arg name="drone_id" value="255"/>
+
+        <node pkg="swarm_bridge" name="drone_$(arg drone_id)_bridge_node"
+              type="bridge_node_udp" output="screen">
+            <remap from="~my_odom" to="/vins_estimator/imu_propagate"/>
+            <remap from="/goal_brig2plner" to="/goal_with_id"/>
+            <remap from="/broadcast_traj_to_planner" to="/broadcast_traj_to_planner"/>
+            <remap from="/broadcast_traj_from_planner" to="/broadcast_traj_from_planner"/>
+            <param name="broadcast_ip" value="$(arg broadcast_ip)" type="string"/>
+            <param name="drone_id" value="$(arg drone_id)"/>
+            <param name="odom_max_freq" value="70"/>
+        </node>
+
+        <node pkg="swarm_bridge" name="traj2odom_node"
+              type="traj2odom_node" output="screen">
+            <param name="odom_hz" value="30"/>
+        </node>
+    </group>
+</launch>

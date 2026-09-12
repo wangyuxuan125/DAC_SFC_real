@@ -94,12 +94,18 @@ int udp_bind_to_port(const int port, int &server_fd)
   }
 
   // Forcefully attaching socket to the port
-  if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT,
-                 &opt, sizeof(opt)))
+  if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
   {
-    perror("setsockopt");
+    perror("setsockopt(SO_REUSEADDR)");
     exit(EXIT_FAILURE);
   }
+#ifdef SO_REUSEPORT
+  if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt)) < 0)
+  {
+    perror("setsockopt(SO_REUSEPORT)");
+    exit(EXIT_FAILURE);
+  }
+#endif
   address.sin_family = AF_INET;
   address.sin_addr.s_addr = INADDR_ANY;
   address.sin_port = htons(port);
@@ -245,7 +251,7 @@ void udp_recv_fun()
 {
   int valread;
   struct sockaddr_in addr_client;
-  socklen_t addr_len;
+  socklen_t addr_len = sizeof(addr_client);
 
   // Connect
   if (udp_bind_to_port(UDP_PORT, udp_server_fd_) < 0)
@@ -254,8 +260,9 @@ void udp_recv_fun()
     exit(EXIT_FAILURE);
   }
 
-  while (true)
+  while (ros::ok())
   {
+    addr_len = sizeof(addr_client);
     if ((valread = recvfrom(udp_server_fd_, udp_recv_buf_, BUF_LEN, 0, (struct sockaddr *)&addr_client, (socklen_t *)&addr_len)) < 0)
     {
       perror("recvfrom() < 0, error:");
@@ -410,7 +417,8 @@ int main(int argc, char **argv)
   // UDP connect
   udp_send_fd_ = init_broadcast(udp_ip_.c_str(), UDP_PORT);
 
-  cout << "[rosmsg_tcp_bridge] start running" << endl;
+  ROS_INFO_STREAM("[swarm_bridge_udp] drone_id=" << drone_id_
+                  << " broadcast=" << udp_ip_ << ":" << UDP_PORT);
 
   ros::spin();
 

@@ -2,7 +2,14 @@
     <!-- size of map, change the size inflate x, y, z according to your application -->
     <arg name="map_size_x" value="100.0"/>
     <arg name="map_size_y" value="100.0"/>
-    <arg name="map_size_z" value=" 3.0"/>
+    <arg name="map_size_z" value="3.0"/>
+
+    <!-- Three-drone Gazebo communication and DAC-SFC mode. -->
+    <arg name="start_swarm_bridge" default="true"/>
+    <arg name="swarm_broadcast_ip" default="127.0.0.255"/>
+    <arg name="swarm_odom_max_freq" default="70"/>
+    <arg name="dac_sfc_shadow_only" default="true"/>
+    <arg name="dac_sfc_fallback_to_ego" default="true"/>
     <!-- <arg name="odom_topic" value="visual_slam/odom" /> -->
 
     <node pkg ="assign_goals" name ="assign_goals_node" type ="assign_goals_node" output = "screen"/>
@@ -37,6 +44,12 @@
         <!-- main algorithm params -->
         <include file="$(find ego_planner)/launch/include/advanced_param_gazebo.xml">
             <arg name="drone_id" value="$(arg drone_id)"/>
+            <arg name="dac_sfc_shadow_only" value="$(arg dac_sfc_shadow_only)"/>
+            <arg name="dac_sfc_fallback_to_ego" value="$(arg dac_sfc_fallback_to_ego)"/>
+            <arg name="dac_sfc_shadow_only" value="$(arg dac_sfc_shadow_only)"/>
+            <arg name="dac_sfc_fallback_to_ego" value="$(arg dac_sfc_fallback_to_ego)"/>
+            <arg name="dac_sfc_shadow_only" value="$(arg dac_sfc_shadow_only)"/>
+            <arg name="dac_sfc_fallback_to_ego" value="$(arg dac_sfc_fallback_to_ego)"/>
             <arg name="map_size_x_" value="$(arg map_size_x)"/>
             <arg name="map_size_y_" value="$(arg map_size_y)"/>
             <arg name="map_size_z_" value="$(arg map_size_z)"/>
@@ -114,7 +127,7 @@
             <arg name="cmd_topic" value="drone_$(arg drone_id)_planning/pos_cmd"/>
         </include>
         <!-- swarm topic transmitter bridge-->
-        <node pkg="swarm_bridge" name="drone_$(arg drone_id)_bridge_node" type="bridge_node_udp" output="screen">
+        <node if="$(arg start_swarm_bridge)" pkg="swarm_bridge" name="drone_$(arg drone_id)_bridge_node" type="bridge_node_udp" output="screen">
             <!-- <remap from="~my_odom"         to="vins_estimator/imu_propagate"/> -->
             <remap from="~my_odom"         to="$(arg odom_topic)"/>
             <remap from="/goal_brig2plner"  to="/goal_with_id"/>
@@ -122,18 +135,19 @@
             <remap from="/broadcast_traj_from_planner" to="/broadcast_traj_from_planner"/>
             <param name="broadcast_ip" value="192.168.50.255" />
             <!-- <param name="broadcast_ip" value="$(arg broadcast_ip)" type="string"/> -->
+            <param name="broadcast_ip" value="$(arg swarm_broadcast_ip)" type="string"/>
             <param name="drone_id" value="$(arg drone_id)"/>
-            <param name="odom_max_freq" value="70"/>
+            <param name="odom_max_freq" value="$(arg swarm_odom_max_freq)"/>
         </node>
 
-        <node pkg="swarm_bridge" name="traj2odom_node" type="traj2odom_node" output="screen">
+        <node if="$(arg start_swarm_bridge)" pkg="swarm_bridge" name="traj2odom_node" type="traj2odom_node" output="screen">
             <param name="odom_hz" value="30"/>
             <remap from="/broadcast_traj_to_planner" to="broadcast_traj_to_planner"/>
             <remap from="/others_odom" to="others_odom"/>
         </node>
     </group>
 
-    <!-- Group for drone_1
+    <!-- Group for drone_1 -->
     <group ns="iris_1">
         <!--无人机id-->
         <arg name="drone_id" value="1"/>
@@ -216,7 +230,7 @@
             <remap from="position_cmd"  to="$(arg cmd_topic)"/>
             <remap from="/position_cmd" to="$(arg cmd_topic)"/>
 
-            <remap from="~planning/trajectory" to="planning/trajectory"/>
+            <remap from="~planning/trajectory" to="/drone_1_planning/trajectory"/>
             <remap from="~heartbeat" to="traj_server/heartbeat"/>
             <param name="traj_server/time_forward" value="1.0" type="double"/>
         </node>
@@ -238,18 +252,19 @@
         <arg name="cmd_topic" value="drone_$(arg drone_id)_planning/pos_cmd"/>
         </include>
         <!-- swarm topic transmitter bridge-->
-        <node pkg="swarm_bridge" name="drone_$(arg drone_id)_bridge_node" type="bridge_node_udp" output="screen">
+        <node if="$(arg start_swarm_bridge)" pkg="swarm_bridge" name="drone_$(arg drone_id)_bridge_node" type="bridge_node_udp" output="screen">
             <remap from="~my_odom"         to="$(arg odom_topic)"/>
             <remap from="/goal_brig2plner"  to="/goal_with_id"/>
             <remap from="/broadcast_traj_to_planner"   to="/broadcast_traj_to_planner"/>
             <remap from="/broadcast_traj_from_planner" to="/broadcast_traj_from_planner"/>
             <param name="broadcast_ip" value="192.168.50.255" />
             <!-- <param name="broadcast_ip" value="$(arg broadcast_ip)" type="string"/> -->
+            <param name="broadcast_ip" value="$(arg swarm_broadcast_ip)" type="string"/>
             <param name="drone_id" value="$(arg drone_id)"/>
-            <param name="odom_max_freq" value="70"/>
+            <param name="odom_max_freq" value="$(arg swarm_odom_max_freq)"/>
         </node>
 
-        <node pkg="swarm_bridge" name="traj2odom_node" type="traj2odom_node" output="screen">
+        <node if="$(arg start_swarm_bridge)" pkg="swarm_bridge" name="traj2odom_node" type="traj2odom_node" output="screen">
             <param name="odom_hz" value="30"/>
             <remap from="/broadcast_traj_to_planner" to="broadcast_traj_to_planner"/>
             <remap from="/others_odom" to="others_odom"/>
@@ -339,7 +354,7 @@
             <remap from="position_cmd"  to="$(arg cmd_topic)"/>
             <remap from="/position_cmd" to="$(arg cmd_topic)"/>
             
-            <remap from="~planning/trajectory" to="planning/trajectory"/>
+            <remap from="~planning/trajectory" to="/drone_2_planning/trajectory"/>
             <remap from="~heartbeat" to="traj_server/heartbeat"/>
             <param name="traj_server/time_forward" value="1.0" type="double"/>
         </node>
@@ -361,18 +376,19 @@
             <arg name="cmd_topic" value="drone_$(arg drone_id)_planning/pos_cmd"/>
         </include>
         <!-- swarm topic transmitter bridge-->
-        <node pkg="swarm_bridge" name="drone_$(arg drone_id)_bridge_node" type="bridge_node_udp" output="screen">
+        <node if="$(arg start_swarm_bridge)" pkg="swarm_bridge" name="drone_$(arg drone_id)_bridge_node" type="bridge_node_udp" output="screen">
             <remap from="~my_odom"         to="$(arg odom_topic)"/>
             <remap from="/goal_brig2plner"  to="/goal_with_id"/>
             <remap from="/broadcast_traj_to_planner"   to="/broadcast_traj_to_planner"/>
             <remap from="/broadcast_traj_from_planner" to="/broadcast_traj_from_planner"/>
             <param name="broadcast_ip" value="192.168.50.255" />
             <!-- <param name="broadcast_ip" value="$(arg broadcast_ip)" type="string"/> -->
+            <param name="broadcast_ip" value="$(arg swarm_broadcast_ip)" type="string"/>
             <param name="drone_id" value="$(arg drone_id)"/>
-            <param name="odom_max_freq" value="70"/>
+            <param name="odom_max_freq" value="$(arg swarm_odom_max_freq)"/>
         </node>
 
-        <node pkg="swarm_bridge" name="traj2odom_node" type="traj2odom_node" output="screen">
+        <node if="$(arg start_swarm_bridge)" pkg="swarm_bridge" name="traj2odom_node" type="traj2odom_node" output="screen">
             <param name="odom_hz" value="30"/>
             <remap from="/broadcast_traj_to_planner" to="broadcast_traj_to_planner"/>
             <remap from="/others_odom" to="others_odom"/>
@@ -385,4 +401,4 @@
         <remap from="/others_odom" to="others_odom"/>
     </node> -->
 
-</launch> -->
+</launch>
