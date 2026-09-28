@@ -1,1 +1,1 @@
-# EGO-based DAC_SFC
+DAC_SFC
